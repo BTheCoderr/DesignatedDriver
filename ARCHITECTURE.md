@@ -1,4 +1,4 @@
-# Chauffer MVP Architecture Summary
+# DesignatedDriver MVP Architecture Summary
 
 ## Tech Stack
 - **Frontend**: React Native (Expo)

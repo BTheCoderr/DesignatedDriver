@@ -1,13 +1,11 @@
 {
   "expo": {
-    "name": "Chauffer",
-    "slug": "chauffer",
+    "name": "Designated Driver",
+    "slug": "designated-driver",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -16,33 +14,32 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.chauffer.app"
+      "bundleIdentifier": "com.designateddriver.app"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "package": "com.chauffer.app"
+      "package": "com.designateddriver.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro"
     },
     "plugins": [
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Chauffer to use your location for driver tracking."
+          "locationAlwaysAndWhenInUsePermission": "Allow Designated Driver to use your location for driver tracking."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Chauffer to take photos for trunk verification and damage claims."
+          "cameraPermission": "Allow Designated Driver to take photos for trunk verification and damage claims."
         }
       ]
     ],
-    "scheme": "chauffer"
+    "scheme": "designateddriver"
   }
 }
 

@@ -22,7 +22,8 @@ export interface DispatchResult {
   mode: 'chase_car' | 'solo_scoot' | null;
   primaryDriver: AvailableDriver | null;
   chaseDriver: AvailableDriver | null;
-  priceEstimate: PriceBreakdown | null;
+  price?: PriceBreakdown; // Changed from priceEstimate to price for consistency
+  priceEstimate?: PriceBreakdown; // Keep for backward compatibility
   estimatedArrival: number | null; // minutes
   error?: string;
   waitTime?: number;
@@ -108,15 +109,27 @@ export async function selectDispatchMode(
   const hasSoloScootAvailability = soloScootDrivers.length > 0;
   const hasChaseCarAvailability = chaseCarDrivers.length >= 2;
 
-  // Decision logic
+  // Decision logic - PRIORITIZE SCOOTER FIRST (scrappy MVP rule)
+  // Try scooter mode first, fallback to chase car if unavailable
   let selectedMode: 'chase_car' | 'solo_scoot' | null = null;
   let primaryDriver: AvailableDriver | null = null;
   let chaseDriver: AvailableDriver | null = null;
 
-  if (hasSoloScootAvailability && soloScootScore >= 5) {
-    selectedMode = 'solo_scoot';
-    primaryDriver = selectBestDriver(soloScootDrivers, tripData.pickup);
+  // Rule 1: Try SCOOTER_SOLO first if available and feasible
+  if (hasSoloScootAvailability) {
+    // Prefer scooter for dense cities, short distances, good weather
+    if (soloScootScore >= 3 || cityDensity === 'high') {
+      selectedMode = 'solo_scoot';
+      primaryDriver = selectBestDriver(soloScootDrivers, tripData.pickup);
+    } else if (hasChaseCarAvailability) {
+      // Fallback to chase car if scooter score is low
+      selectedMode = 'chase_car';
+      const drivers = selectChaseCarPair(chaseCarDrivers, tripData.pickup);
+      primaryDriver = drivers.primary;
+      chaseDriver = drivers.chase;
+    }
   } else if (hasChaseCarAvailability) {
+    // Rule 2: Fallback to chase car if no scooter drivers available
     selectedMode = 'chase_car';
     const drivers = selectChaseCarPair(chaseCarDrivers, tripData.pickup);
     primaryDriver = drivers.primary;
@@ -134,7 +147,7 @@ export async function selectDispatchMode(
   }
 
   // Calculate price
-  const priceEstimate = calculatePrice(selectedMode, distance, timeOfDay, weather, isWeekend);
+  const price = calculatePrice(selectedMode, distance, timeOfDay, weather, isWeekend);
   const estimatedArrival = primaryDriver
     ? estimateArrivalTime(primaryDriver, tripData.pickup)
     : null;
@@ -143,7 +156,8 @@ export async function selectDispatchMode(
     mode: selectedMode,
     primaryDriver,
     chaseDriver,
-    priceEstimate,
+    price, // Main price field
+    priceEstimate: price, // Backward compatibility
     estimatedArrival,
   };
 }
@@ -219,14 +233,16 @@ export function calculatePrice(
   let surgeMultiplier = 1.0;
 
   if (mode !== 'shadow') {
-    mileageFee = distance * config.per_mile;
-    if (config.requires_two_drivers) {
-      baseFee *= config.driver_multiplier;
-      mileageFee *= config.driver_multiplier;
+    const distanceConfig = config as typeof PRICING_CONFIG.chase_car | typeof PRICING_CONFIG.solo_scoot;
+    mileageFee = distance * distanceConfig.per_mile;
+    if ('requires_two_drivers' in distanceConfig && distanceConfig.requires_two_drivers && 'driver_multiplier' in distanceConfig) {
+      baseFee *= distanceConfig.driver_multiplier;
+      mileageFee *= distanceConfig.driver_multiplier;
     }
   } else {
-    const hours = Math.max(duration || config.minimum_hours, config.minimum_hours);
-    mileageFee = hours * config.hourly_rate;
+    const shadowConfig = config as typeof PRICING_CONFIG.shadow;
+    const hours = Math.max(duration || shadowConfig.minimum_hours, shadowConfig.minimum_hours);
+    mileageFee = hours * shadowConfig.hourly_rate;
   }
 
   surgeMultiplier = getSurgeMultiplier(timeOfDay, isWeekend, weather);

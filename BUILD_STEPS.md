@@ -1,4 +1,4 @@
-# Build Steps - Chauffer MVP
+# Build Steps - DesignatedDriver MVP
 
 ## Prerequisites
 

@@ -32,15 +32,35 @@ CREATE POLICY "Users can insert own profile"
   ON public.profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
--- Admins can view all profiles
+-- Helper functions to check user roles (bypass RLS to prevent recursion)
+CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = user_id AND role = 'admin'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_driver(user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = user_id AND role = 'driver'
+  );
+$$;
+
+-- Admins can view all profiles (uses function to prevent recursion)
 CREATE POLICY "Admins can view all profiles"
   ON public.profiles FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 -- ============================================
 -- VEHICLES
@@ -59,6 +79,11 @@ CREATE POLICY "Users can insert own vehicles"
 -- Users can update their own vehicles
 CREATE POLICY "Users can update own vehicles"
   ON public.vehicles FOR UPDATE
+  USING (user_id = auth.uid());
+
+-- Users can delete their own vehicles
+CREATE POLICY "Users can delete own vehicles"
+  ON public.vehicles FOR DELETE
   USING (user_id = auth.uid());
 
 -- Drivers can view vehicles for assigned trips
@@ -94,25 +119,15 @@ CREATE POLICY "Drivers can update own gear before verification"
     AND verification_status IN ('none', 'pending', 'rejected')
   );
 
--- Admins can view all gear
+-- Admins can view all gear (uses function to prevent recursion)
 CREATE POLICY "Admins can view all gear"
   ON public.driver_gear FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
--- Admins can update gear verification status
+-- Admins can update gear verification status (uses function to prevent recursion)
 CREATE POLICY "Admins can verify gear"
   ON public.driver_gear FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 -- ============================================
 -- TRIPS
@@ -142,15 +157,12 @@ CREATE POLICY "Drivers can view assigned trips"
     OR chase_driver_id = auth.uid()
   );
 
--- Drivers can view available trips (for dispatch)
+-- Drivers can view available trips (for dispatch) (uses function to prevent recursion)
 CREATE POLICY "Drivers can view available trips"
   ON public.trips FOR SELECT
   USING (
     status = 'requested'
-    AND EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'driver'
-    )
+    AND public.is_driver(auth.uid())
   );
 
 -- Drivers can update trips they're assigned to (status updates)
@@ -161,15 +173,10 @@ CREATE POLICY "Drivers can update assigned trips"
     OR chase_driver_id = auth.uid()
   );
 
--- Admins can view all trips
+-- Admins can view all trips (uses function to prevent recursion)
 CREATE POLICY "Admins can view all trips"
   ON public.trips FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 -- ============================================
 -- TRUNK LOGS
@@ -281,25 +288,15 @@ CREATE POLICY "Users can update own claims"
   ON public.claims FOR UPDATE
   USING (user_id = auth.uid() AND status = 'submitted');
 
--- Admins can view all claims
+-- Admins can view all claims (uses function to prevent recursion)
 CREATE POLICY "Admins can view all claims"
   ON public.claims FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
--- Admins can update claims (review, approve, deny)
+-- Admins can update claims (review, approve, deny) (uses function to prevent recursion)
 CREATE POLICY "Admins can update claims"
   ON public.claims FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
+  USING (public.is_admin(auth.uid()));
 
 -- ============================================
 -- DRIVER LOCATIONS

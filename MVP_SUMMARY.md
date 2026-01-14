@@ -1,4 +1,4 @@
-# Chauffer MVP - Deliverables Summary
+# DesignatedDriver MVP - Deliverables Summary
 
 ## A) Architecture Summary
 

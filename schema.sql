@@ -1,5 +1,5 @@
 -- ============================================
--- CHAUFFER MVP DATABASE SCHEMA
+-- DESIGNATEDDRIVER MVP DATABASE SCHEMA
 -- Supabase PostgreSQL Schema
 -- ============================================
 

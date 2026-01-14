@@ -1,4 +1,4 @@
-# Chauffer MVP
+# DesignatedDriver MVP
 
 A "drive my car home" app prototype with hybrid dispatch system (Chase Car + Solo-Scoot).
 

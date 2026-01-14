@@ -98,3 +98,24 @@ export async function getInsuranceSession(tripId: string): Promise<InsuranceSess
   return data;
 }
 
+/**
+ * Wrapper: Binds insurance policy by trip ID
+ */
+export async function bindInsurancePolicy(tripId: string): Promise<InsuranceSession> {
+  const session = await getInsuranceSession(tripId);
+  if (!session) {
+    throw new Error('Insurance session not found for trip');
+  }
+  return bindPolicy(session.id, tripId);
+}
+
+/**
+ * Wrapper: Ends insurance policy by trip ID
+ */
+export async function endInsurancePolicy(tripId: string): Promise<InsuranceSession> {
+  const session = await getInsuranceSession(tripId);
+  if (!session) {
+    throw new Error('Insurance session not found for trip');
+  }
+  return endPolicy(session.id, tripId);
+}
