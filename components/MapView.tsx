@@ -23,9 +23,12 @@ export default function MapView({
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Get Mapbox token from environment (will be set in Netlify)
+    // Get Mapbox token from environment (set in Netlify or .env)
+    // For Expo web, environment variables are available at build time
     const token = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
-    setMapboxToken(token);
+    if (token) {
+      setMapboxToken(token);
+    }
   }, []);
 
   // If no token, show placeholder
