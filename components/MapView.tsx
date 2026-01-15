@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { useEffect, useState } from 'react';
+import { View, StyleSheet, Text, Platform } from 'react-native';
 
 interface MapViewProps {
   latitude: number;
