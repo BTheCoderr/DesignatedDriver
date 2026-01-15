@@ -1,47 +1,27 @@
 # Deploy to Web for VC Demo
 
-## Quick Deploy Options
+## ✅ Netlify GitHub Integration (Recommended)
 
-### Option 1: Expo Web (Easiest - Share URL)
-```bash
-npm run web
-```
-Then share: `http://localhost:8081` (or your network IP)
+**Already configured!** Just connect your repo:
 
-### Option 2: Build Static Web (Best for VCs)
-```bash
-npx expo export:web
-```
-This creates a `web-build/` folder you can deploy to:
-- **Netlify** (drag & drop `web-build/` folder)
-- **Vercel** (connect GitHub repo)
-- **Any static host**
+1. **Go to [netlify.com](https://netlify.com)** → Sign in
+2. **Click "Add new site"** → "Import an existing project"
+3. **Connect to GitHub** → Select `BTheCoderr/DesignatedDriver`
+4. **Settings are auto-configured:**
+   - Build command: `npx expo export:web`
+   - Publish directory: `web-build`
+5. **Click "Deploy site"** → Done!
 
-### Option 3: Expo Hosting (Free)
-```bash
-npx expo publish --web
-```
-Gets you a shareable URL like: `https://designated-driver.web.app`
+**Auto-deploys on every push to `main` branch!**
 
 ---
 
-## For VC Demo - Recommended:
+## Manual Deploy (If Needed)
 
-1. **Build static web:**
-   ```bash
-   npx expo export:web
-   ```
-
-2. **Deploy to Netlify:**
-   - Go to netlify.com
-   - Drag `web-build/` folder
-   - Get instant URL: `https://your-app.netlify.app`
-   - Share with VCs!
-
-3. **Or use Expo's hosting:**
-   ```bash
-   npx expo publish --web
-   ```
+```bash
+npx expo export:web
+```
+Then drag `web-build/` folder to Netlify.
 
 ---
 
