@@ -56,7 +56,20 @@ const DENSE_CITY_ZONES: CityZone[] = [
     density: 'high',
     bounds: { north: 47.7341, south: 47.4955, east: -122.2044, west: -122.4597 },
   },
+  {
+    name: 'Providence, RI',
+    density: 'high',
+    bounds: { north: 41.8766, south: 41.7741, east: -71.3706, west: -71.4378 },
+  },
 ];
+
+// Default location: Providence, Rhode Island (starting market)
+export const DEFAULT_LOCATION = {
+  lat: 41.8240, // Providence, RI
+  lng: -71.4128,
+  address: 'Providence, RI',
+  cityDensity: 'high' as CityDensity,
+};
 
 /**
  * Detects city density based on coordinates

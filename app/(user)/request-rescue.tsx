@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityInd
 import { supabase, type Vehicle } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { selectDispatchMode, calculatePrice, type TripData } from '@/lib/dispatcher';
-import { detectCityDensity } from '@/lib/cityDetection';
+import { detectCityDensity, DEFAULT_LOCATION } from '@/lib/cityDetection';
 import * as Location from 'expo-location';
 
 export default function RequestRescueScreen() {
@@ -47,7 +47,10 @@ export default function RequestRescueScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Location permission is required for pickup');
+        // Fallback to default location (Providence, RI)
+        console.log('Location permission denied, using default: Providence, RI');
+        setPickupCoords({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng });
+        setPickupAddress(DEFAULT_LOCATION.address);
         return;
       }
 
@@ -56,13 +59,24 @@ export default function RequestRescueScreen() {
       setPickupCoords({ lat: latitude, lng: longitude });
 
       // Reverse geocode to get address
-      const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
-      if (geocode.length > 0) {
-        const addr = geocode[0];
-        setPickupAddress(`${addr.street || ''} ${addr.city || ''}, ${addr.region || ''}`.trim());
+      try {
+        const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (geocode.length > 0) {
+          const addr = geocode[0];
+          setPickupAddress(`${addr.street || ''} ${addr.city || ''}, ${addr.region || ''}`.trim());
+        } else {
+          setPickupAddress(DEFAULT_LOCATION.address);
+        }
+      } catch (geocodeError) {
+        // If geocoding fails, use default
+        console.log('Geocoding failed, using default location');
+        setPickupAddress(DEFAULT_LOCATION.address);
       }
     } catch (error) {
       console.error('Location error:', error);
+      // Fallback to default location on error
+      setPickupCoords({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng });
+      setPickupAddress(DEFAULT_LOCATION.address);
     }
   };
 
