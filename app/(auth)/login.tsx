@@ -8,14 +8,16 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      setError('Please enter email and password');
       return;
     }
 
+    setError(null);
     setLoading(true);
     
     try {
@@ -28,43 +30,26 @@ export default function LoginScreen() {
         setLoading(false);
         console.error('Login error:', error);
         
+        // Set visible error message
+        let errorMessage = error.message || 'Failed to sign in. Please check your credentials.';
+        
         // Check for email not confirmed
         if (error.message?.includes('Email not confirmed') || error.message?.includes('email_not_confirmed')) {
-          Alert.alert(
-            'Email Not Confirmed',
-            'Please check your email and click the confirmation link before logging in.',
-            [
-              { text: 'OK' },
-              {
-                text: 'Resend Email',
-                onPress: async () => {
-                  const { error: resendError } = await supabase.auth.resend({
-                    type: 'signup',
-                    email: email.trim(),
-                  });
-                  if (resendError) {
-                    Alert.alert('Error', 'Failed to resend email');
-                  } else {
-                    Alert.alert('Success', 'Confirmation email sent!');
-                  }
-                },
-              },
-            ]
-          );
-          return;
+          errorMessage = 'Please check your email and click the confirmation link before logging in.';
+        }
+        
+        // Check for invalid credentials
+        if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.';
         }
         
         // Check for API key error
         if (error.message?.includes('Invalid API key') || error.message?.includes('401')) {
-          Alert.alert(
-            'Configuration Error',
-            'Invalid Supabase API key. Please check your .env file and make sure EXPO_PUBLIC_SUPABASE_ANON_KEY is set correctly.',
-            [{ text: 'OK' }]
-          );
-          return;
+          errorMessage = 'Configuration error. Please contact support.';
         }
         
-        Alert.alert('Login Error', error.message || 'Failed to sign in. Please check your credentials.');
+        setError(errorMessage);
+        Alert.alert('Login Error', errorMessage); // Also show alert as backup
         return;
       }
 
@@ -160,6 +145,12 @@ export default function LoginScreen() {
               autoComplete="password"
             />
           </View>
+
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -286,5 +277,19 @@ const styles = StyleSheet.create({
   linkTextBold: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  errorContainer: {
+    backgroundColor: '#ff444420',
+    borderWidth: 1,
+    borderColor: '#ff4444',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
