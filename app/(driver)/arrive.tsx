@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
+import MapView from '@/components/MapView';
 
 export default function ArriveScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -102,11 +103,14 @@ export default function ArriveScreen() {
           <Text style={styles.locationAddress}>{trip.pickup_address}</Text>
         </View>
 
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapPlaceholderText}>🗺️</Text>
-          <Text style={styles.mapPlaceholderLabel}>Navigation Map</Text>
-          <Text style={styles.mapPlaceholderSubtext}>Use your navigation app to reach the pickup location</Text>
-        </View>
+        {trip.pickup_latitude && trip.pickup_longitude && (
+          <MapView
+            latitude={trip.pickup_latitude}
+            longitude={trip.pickup_longitude}
+            height={300}
+            style={styles.mapContainer}
+          />
+        )}
 
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Trip Details</Text>
@@ -210,6 +214,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#fff',
+  },
+  mapContainer: {
+    marginBottom: 16,
   },
   mapPlaceholder: {
     backgroundColor: '#1a1a1a',

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
+import MapView from '@/components/MapView';
 
 export default function TripTrackingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -194,14 +195,18 @@ export default function TripTrackingScreen() {
           </View>
         )}
 
-        {/* Map Placeholder */}
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapPlaceholderText}>🗺️</Text>
-          <Text style={styles.mapPlaceholderLabel}>Live Map View</Text>
-          <Text style={styles.mapPlaceholderSubtext}>
-            Driver location tracking will appear here
-          </Text>
-        </View>
+        {/* Map View */}
+        {trip.pickup_latitude && trip.pickup_longitude && (
+          <MapView
+            latitude={trip.pickup_latitude}
+            longitude={trip.pickup_longitude}
+            destinationLat={trip.destination_latitude || undefined}
+            destinationLng={trip.destination_longitude || undefined}
+            showRoute={trip.status === 'in_progress' || trip.status === 'trunk_verified'}
+            height={300}
+            style={styles.mapContainer}
+          />
+        )}
 
         {/* Actions */}
         {trip.status === 'requested' && (
@@ -345,6 +350,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginBottom: 4,
+  },
+  mapContainer: {
+    marginBottom: 24,
   },
   mapPlaceholder: {
     backgroundColor: '#1a1a1a',

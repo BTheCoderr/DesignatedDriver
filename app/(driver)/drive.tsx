@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicat
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
 import { bindInsurancePolicy, endInsurancePolicy } from '@/lib/insurance';
+import MapView from '@/components/MapView';
 
 export default function DriveScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -253,13 +254,17 @@ export default function DriveScreen() {
           )}
         </View>
 
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapPlaceholderText}>🗺️</Text>
-          <Text style={styles.mapPlaceholderLabel}>Navigation Map</Text>
-          <Text style={styles.mapPlaceholderSubtext}>
-            {isInProgress ? 'Follow route to destination' : 'Ready to start navigation'}
-          </Text>
-        </View>
+        {trip.pickup_latitude && trip.pickup_longitude && (
+          <MapView
+            latitude={trip.pickup_latitude}
+            longitude={trip.pickup_longitude}
+            destinationLat={trip.destination_latitude || undefined}
+            destinationLng={trip.destination_longitude || undefined}
+            showRoute={isInProgress}
+            height={300}
+            style={styles.mapContainer}
+          />
+        )}
 
         {!isInProgress && (
           <View style={styles.instructionCard}>
@@ -395,6 +400,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '600',
+  },
+  mapContainer: {
+    marginBottom: 16,
   },
   mapPlaceholder: {
     backgroundColor: '#1a1a1a',
