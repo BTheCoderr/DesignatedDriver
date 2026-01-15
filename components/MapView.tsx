@@ -193,6 +193,3 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
-
-// Fix for missing Text import
-import { Text } from 'react-native';
