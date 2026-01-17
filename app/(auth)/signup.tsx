@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
+import { logSignup } from '@/lib/analytics';
 
 export default function SignupScreen() {
   const [email, setEmail] = useState('');
@@ -9,16 +10,14 @@ export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSignup = async () => {
     if (!email || !password || !fullName || !phone) {
-      setError('Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    setError(null);
     setLoading(true);
     
     try {
@@ -37,26 +36,28 @@ export default function SignupScreen() {
         setLoading(false);
         console.error('Signup error:', error);
         
-        let errorMessage = error.message || 'Failed to create account. Please try again.';
-        
         // Check for rate limiting
         if (error.message?.includes('429') || error.message?.includes('security purposes') || error.message?.includes('only request this after')) {
           const waitTime = error.message.match(/(\d+)\s+seconds?/)?.[1] || '60';
-          errorMessage = `Too many attempts. Please wait ${waitTime} seconds before trying again.`;
+          Alert.alert(
+            'Too Many Requests',
+            `You've tried signing up too many times. Please wait ${waitTime} seconds before trying again.`,
+            [{ text: 'OK' }]
+          );
+          return;
         }
         
         // Check for API key error
         if (error.message?.includes('Invalid API key') || error.message?.includes('401')) {
-          errorMessage = 'Configuration error. Please contact support.';
+          Alert.alert(
+            'Configuration Error',
+            'Invalid Supabase API key. Please check your .env file and make sure EXPO_PUBLIC_SUPABASE_ANON_KEY is set correctly.',
+            [{ text: 'OK' }]
+          );
+          return;
         }
         
-        // Check for existing user
-        if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
-          errorMessage = 'An account with this email already exists. Please sign in instead.';
-        }
-        
-        setError(errorMessage);
-        Alert.alert('Signup Error', errorMessage); // Also show alert as backup
+        Alert.alert('Signup Error', error.message || 'Failed to create account. Please try again.');
         return;
       }
 
@@ -97,6 +98,8 @@ export default function SignupScreen() {
         }
 
         setLoading(false);
+        // Log signup event
+        await logSignup(data.user.id);
         // Success! Redirect to role selection
         router.replace('/(auth)/role-select');
       } else {
@@ -177,12 +180,6 @@ export default function SignupScreen() {
               autoComplete="password-new"
             />
           </View>
-
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -292,19 +289,5 @@ const styles = StyleSheet.create({
   linkTextBold: {
     color: '#007AFF',
     fontWeight: '600',
-  },
-  errorContainer: {
-    backgroundColor: '#ff444420',
-    borderWidth: 1,
-    borderColor: '#ff4444',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    marginTop: 8,
-  },
-  errorText: {
-    color: '#ff4444',
-    fontSize: 14,
-    textAlign: 'center',
   },
 });

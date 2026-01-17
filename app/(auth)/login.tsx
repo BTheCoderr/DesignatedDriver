@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityInd
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import AuthDebug from '@/components/AuthDebug';
+import { logLogin } from '@/lib/analytics';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -30,32 +31,31 @@ export default function LoginScreen() {
         setLoading(false);
         console.error('Login error:', error);
         
-        // Set visible error message
-        let errorMessage = error.message || 'Failed to sign in. Please check your credentials.';
-        
         // Check for email not confirmed
         if (error.message?.includes('Email not confirmed') || error.message?.includes('email_not_confirmed')) {
-          errorMessage = 'Please check your email and click the confirmation link before logging in.';
+          setError('Email not confirmed. Please check your email and click the confirmation link.');
+          return;
         }
         
         // Check for invalid credentials
         if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
-          errorMessage = 'Invalid email or password. Please try again.';
+          setError('Invalid email or password. Please try again.');
+          return;
         }
         
         // Check for API key error
         if (error.message?.includes('Invalid API key') || error.message?.includes('401')) {
-          errorMessage = 'Configuration error. Please contact support.';
+          setError('Configuration error. Please contact support.');
+          return;
         }
         
-        setError(errorMessage);
-        Alert.alert('Login Error', errorMessage); // Also show alert as backup
+        setError(error.message || 'Failed to sign in. Please check your credentials.');
         return;
       }
 
       if (!data.user) {
         setLoading(false);
-        Alert.alert('Error', 'No user data returned');
+        setError('No user data returned. Please try again.');
         return;
       }
 
@@ -75,11 +75,14 @@ export default function LoginScreen() {
           return;
         }
         setLoading(false);
-        Alert.alert('Error', 'Failed to load profile');
+        setError('Failed to load profile. Please try again.');
         return;
       }
 
       setLoading(false);
+
+      // Log login event
+      await logLogin(data.user.id);
 
       // Redirect based on role
       if (profile) {
@@ -96,7 +99,7 @@ export default function LoginScreen() {
     } catch (err) {
       setLoading(false);
       console.error('Unexpected login error:', err);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      setError('An unexpected error occurred. Please try again.');
     }
   };
 
@@ -115,10 +118,16 @@ export default function LoginScreen() {
             <Text style={styles.logoEmoji}>🚗</Text>
           </View>
           <Text style={styles.title}>Designated Driver</Text>
+          <Text style={styles.clarityText}>Request an on-demand designated driver to get you and your car home.</Text>
           <Text style={styles.subtitle}>Professional drivers to get you and your car home safely</Text>
         </View>
 
         <View style={styles.form}>
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -146,12 +155,6 @@ export default function LoginScreen() {
             />
           </View>
 
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
@@ -173,6 +176,14 @@ export default function LoginScreen() {
             <Text style={styles.linkText}>
               Don't have an account? <Text style={styles.linkTextBold}>Sign up</Text>
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.guestButton}
+            onPress={() => router.push('/(user)/request-rescue')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.guestButtonText}>Continue as Guest →</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -215,12 +226,34 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     letterSpacing: -1,
   },
+  clarityText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 26,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    marginTop: 8,
+  },
   subtitle: {
     fontSize: 16,
     color: '#888',
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
+  },
+  errorContainer: {
+    backgroundColor: '#ff4444',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   form: {
     width: '100%',
@@ -278,18 +311,17 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
   },
-  errorContainer: {
-    backgroundColor: '#ff444420',
-    borderWidth: 1,
-    borderColor: '#ff4444',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    marginTop: 8,
+  guestButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a2a',
+    paddingTop: 20,
   },
-  errorText: {
-    color: '#ff4444',
-    fontSize: 14,
-    textAlign: 'center',
+  guestButtonText: {
+    color: '#007AFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

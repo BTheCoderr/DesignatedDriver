@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { selectDispatchMode, calculatePrice, type TripData } from '@/lib/dispatcher';
 import { detectCityDensity, DEFAULT_LOCATION } from '@/lib/cityDetection';
 import * as Location from 'expo-location';
+import { logTripRequested } from '@/lib/analytics';
 
 export default function RequestRescueScreen() {
   const [step, setStep] = useState(1); // 1: vehicle, 2: destination, 3: confirm, 4: creating
@@ -252,6 +253,14 @@ export default function RequestRescueScreen() {
         console.error('Insurance session error:', insuranceError);
       }
 
+      // Log trip requested event
+      await logTripRequested(trip.id, user.id, {
+        dispatch_mode: dispatchResult.mode,
+        vehicle_id: selectedVehicle.id,
+        total_price: dispatchResult.price?.total || 0,
+        distance: distance,
+      });
+
       setLoading(false);
       router.replace(`/(user)/trip-tracking?id=${trip.id}`);
     } catch (error: any) {
@@ -268,6 +277,16 @@ export default function RequestRescueScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Pricing Info Banner */}
+        {step === 1 && (
+          <View style={styles.pricingBanner}>
+            <Text style={styles.pricingBannerTitle}>💰 Pricing</Text>
+            <Text style={styles.pricingBannerText}>
+              Based on distance, time, and demand. Flat minimum per trip. See breakdown before confirming.
+            </Text>
+          </View>
+        )}
+
         {/* Step 1: Select Vehicle */}
         {step === 1 && (
           <View style={styles.stepContainer}>
@@ -657,5 +676,24 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  pricingBanner: {
+    backgroundColor: '#1a1a1a',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  pricingBannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#007AFF',
+    marginBottom: 8,
+  },
+  pricingBannerText: {
+    fontSize: 14,
+    color: '#888',
+    lineHeight: 20,
   },
 });

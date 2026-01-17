@@ -164,9 +164,21 @@ export default function DriverHome() {
             <Text style={styles.activeTripText}>
               {activeTrip.pickup_address} → {activeTrip.destination_address}
             </Text>
-            <Text style={styles.activeTripStatus}>
-              Status: {activeTrip.status.replace('_', ' ').toUpperCase()}
-            </Text>
+            <View style={styles.statusRow}>
+              <View style={[
+                styles.statusDot,
+                activeTrip.status === 'dispatched' && styles.statusDotEnRoute,
+                activeTrip.status === 'driver_arriving' && styles.statusDotArriving,
+                activeTrip.status === 'in_progress' && styles.statusDotDriving,
+              ]} />
+              <Text style={styles.activeTripStatus}>
+                {activeTrip.status === 'dispatched' ? 'En Route' :
+                 activeTrip.status === 'driver_arriving' ? 'Arriving' :
+                 activeTrip.status === 'trunk_verified' ? 'Verified' :
+                 activeTrip.status === 'in_progress' ? 'Driving' :
+                 activeTrip.status.replace('_', ' ').toUpperCase()}
+              </Text>
+            </View>
           </TouchableOpacity>
         )}
 
@@ -317,10 +329,32 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     opacity: 0.9,
   },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#888',
+    marginRight: 8,
+  },
+  statusDotEnRoute: {
+    backgroundColor: '#FFA500',
+  },
+  statusDotArriving: {
+    backgroundColor: '#4CAF50',
+  },
+  statusDotDriving: {
+    backgroundColor: '#007AFF',
+  },
   activeTripStatus: {
     fontSize: 12,
     color: '#fff',
-    opacity: 0.8,
+    opacity: 0.9,
+    fontWeight: '600',
   },
   emptyText: {
     color: '#888',

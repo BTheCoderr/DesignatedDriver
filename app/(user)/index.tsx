@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import TrustSignals from '@/components/TrustSignals';
 
 export default function UserHome() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function UserHome() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content}>
         <TouchableOpacity
           style={styles.rescueButton}
           activeOpacity={0.9}
@@ -53,6 +54,25 @@ export default function UserHome() {
             </View>
             <Text style={styles.actionArrow}>→</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => {
+              // Growth hook: Referral
+              Alert.alert(
+                'Invite Friends',
+                'Invite a friend and both get $10 credit!',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
+            <Text style={styles.actionEmoji}>🎁</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Invite Friends</Text>
+              <Text style={styles.actionSubtext}>Both get $10 credit</Text>
+            </View>
+            <Text style={styles.actionArrow}>→</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -62,7 +82,9 @@ export default function UserHome() {
             <Text style={styles.emptyStateSubtext}>Tap RESCUE to request a driver</Text>
           </View>
         </View>
-      </View>
+
+        <TrustSignals />
+      </ScrollView>
     </SafeAreaView>
   );
 }

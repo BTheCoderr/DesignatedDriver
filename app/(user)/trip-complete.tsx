@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, TextInput, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
+import { logTripCompleted } from '@/lib/analytics';
 
 export default function TripCompleteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -64,6 +65,16 @@ export default function TripCompleteScreen() {
         });
 
       if (error) throw error;
+
+      // Log trip completed event
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await logTripCompleted(trip.id, user.id, {
+          rating,
+          tip_amount: tipAmount,
+          has_review: !!review,
+        });
+      }
 
       Alert.alert('Success', 'Thank you for your feedback!', [
         {
