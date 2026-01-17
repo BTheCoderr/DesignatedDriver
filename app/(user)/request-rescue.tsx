@@ -207,33 +207,49 @@ export default function RequestRescueScreen() {
 
       const distance = 5.0; // Would calculate from coords
 
-      // Create trip
+      // Ensure destination_address is not empty (required field)
+      const finalDestinationAddress = destination.trim();
+      if (!finalDestinationAddress) {
+        Alert.alert('Error', 'Destination address is required');
+        setLoading(false);
+        return;
+      }
+
+      // Prepare trip data with proper types
+      const tripData = {
+        user_id: user.id,
+        vehicle_id: selectedVehicle.id,
+        dispatch_mode: dispatchResult.mode as 'chase_car' | 'solo_scoot' | 'shadow',
+        status: 'requested' as const,
+        pickup_latitude: Number(pickupCoords.lat),
+        pickup_longitude: Number(pickupCoords.lng),
+        pickup_address: (pickupAddress || 'Current location').trim(),
+        destination_latitude: Number(destinationCoords?.lat || pickupCoords.lat + 0.05),
+        destination_longitude: Number(destinationCoords?.lng || pickupCoords.lng + 0.05),
+        destination_address: finalDestinationAddress, // Required field
+        primary_driver_id: dispatchResult.primaryDriver?.id || null,
+        chase_driver_id: dispatchResult.chaseDriver?.id || null,
+        base_fee: dispatchResult.price?.base_fee || 0,
+        mileage_fee: dispatchResult.price?.mileage_fee || 0,
+        surge_multiplier: dispatchResult.price?.surge_multiplier || 1.0,
+        total_price: dispatchResult.price?.total || 0,
+        estimated_distance_miles: distance,
+        estimated_duration_minutes: dispatchResult.estimatedArrival || 15,
+      };
+
+      console.log('Creating trip with data:', tripData);
+
       const { data: trip, error: tripError } = await supabase
         .from('trips')
-        .insert({
-          user_id: user.id,
-          vehicle_id: selectedVehicle.id,
-          dispatch_mode: dispatchResult.mode,
-          status: 'requested',
-          pickup_latitude: pickupCoords.lat,
-          pickup_longitude: pickupCoords.lng,
-          pickup_address: pickupAddress || 'Current location',
-          destination_latitude: destinationCoords?.lat || pickupCoords.lat + 0.05,
-          destination_longitude: destinationCoords?.lng || pickupCoords.lng + 0.05,
-          destination_address: destination,
-          primary_driver_id: dispatchResult.primaryDriver?.id || null,
-          chase_driver_id: dispatchResult.chaseDriver?.id || null,
-          base_fee: dispatchResult.price?.base_fee || 0,
-          mileage_fee: dispatchResult.price?.mileage_fee || 0,
-          surge_multiplier: dispatchResult.price?.surge_multiplier || 1.0,
-          total_price: dispatchResult.price?.total || 0,
-          estimated_distance_miles: distance,
-          estimated_duration_minutes: dispatchResult.estimatedArrival || 15,
-        })
+        .insert(tripData)
         .select()
         .single();
 
       if (tripError) {
+        console.error('Trip creation error details:', tripError);
+        console.error('Error code:', tripError.code);
+        console.error('Error message:', tripError.message);
+        console.error('Error details:', tripError.details);
         throw tripError;
       }
 
@@ -266,7 +282,23 @@ export default function RequestRescueScreen() {
     } catch (error: any) {
       setLoading(false);
       console.error('Create trip error:', error);
-      Alert.alert('Error', error.message || 'Failed to create trip. Please try again.');
+      
+      // Better error messages for common issues
+      let errorMessage = 'Failed to create trip. Please try again.';
+      
+      if (error.code === '23503') {
+        errorMessage = 'Vehicle not found. Please add a vehicle first.';
+      } else if (error.code === '23505') {
+        errorMessage = 'A trip with this information already exists.';
+      } else if (error.code === '42501') {
+        errorMessage = 'Permission denied. Please check your account settings.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      Alert.alert('Error', errorMessage);
     }
   };
 
