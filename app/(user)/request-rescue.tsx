@@ -272,7 +272,18 @@ export default function RequestRescueScreen() {
       });
 
       setLoading(false);
-      router.replace(`/(user)/trip-tracking?id=${trip.id}`);
+      
+      // Show success message before navigating
+      Alert.alert(
+        'Request Submitted! ✅',
+        'We\'re looking for a driver. You\'ll be notified when one accepts.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace(`/(user)/trip-tracking?id=${trip.id}`),
+          },
+        ]
+      );
     } catch (error: any) {
       setLoading(false);
       console.error('Create trip error:', error);
