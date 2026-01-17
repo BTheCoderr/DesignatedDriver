@@ -135,17 +135,10 @@ export default function RequestRescueScreen() {
     setStep(3);
 
     try {
-      // Mock available drivers for MVP (in production, query from database)
-      const availableDrivers: any[] = [
-        {
-          id: 'driver-1',
-          gear_verified: 'verified',
-          gear_type: 'folding_scooter',
-          is_available: true,
-          currentLocation: { lat: pickupCoords.lat + 0.01, lng: pickupCoords.lng + 0.01 },
-          rating: 4.8,
-        },
-      ];
+      // For MVP: No driver assignment at request time
+      // Drivers will see and accept jobs from their dashboard
+      // Empty array - we're just calculating price/mode, not assigning drivers
+      const availableDrivers: any[] = [];
 
       // Calculate distance (simplified for MVP - use real distance calculation)
       const distance = 5.0; // miles (would calculate from coords)
@@ -227,8 +220,9 @@ export default function RequestRescueScreen() {
         destination_latitude: Number(destinationCoords?.lat || pickupCoords.lat + 0.05),
         destination_longitude: Number(destinationCoords?.lng || pickupCoords.lng + 0.05),
         destination_address: finalDestinationAddress, // Required field
-        primary_driver_id: dispatchResult.primaryDriver?.id || null,
-        chase_driver_id: dispatchResult.chaseDriver?.id || null,
+        // Don't assign drivers yet - they'll accept the job later
+        primary_driver_id: null,
+        chase_driver_id: null,
         base_fee: dispatchResult.price?.base_fee || 0,
         mileage_fee: dispatchResult.price?.mileage_fee || 0,
         surge_multiplier: dispatchResult.price?.surge_multiplier || 1.0,
