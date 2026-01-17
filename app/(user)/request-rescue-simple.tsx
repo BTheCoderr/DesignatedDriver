@@ -129,32 +129,49 @@ export default function RequestRescueSimpleScreen() {
         // Use default
       }
 
+      // Ensure destination_address is not empty (required field)
+      const finalDestinationAddress = destinationAddress.trim();
+      if (!finalDestinationAddress) {
+        Alert.alert('Error', 'Destination address is required');
+        setLoading(false);
+        return;
+      }
+
       // Create simple trip - status = 'requested' (Looking for driver)
+      const tripData = {
+        user_id: user.id,
+        vehicle_id: selectedVehicle.id,
+        dispatch_mode: 'chase_car' as const, // Default for MVP
+        status: 'requested' as const, // This is "Looking for driver"
+        pickup_latitude: Number(pickupLat),
+        pickup_longitude: Number(pickupLng),
+        pickup_address: pickupAddress.trim() || null,
+        destination_latitude: Number(destLat),
+        destination_longitude: Number(destLng),
+        destination_address: finalDestinationAddress, // Required field
+        user_notes: notes.trim() || null,
+        // Simple pricing for MVP - can be calculated later
+        base_fee: 25.00,
+        mileage_fee: 2.50,
+        surge_multiplier: 1.0,
+        total_price: 25.00, // Will be updated when driver accepts
+        estimated_distance_miles: 5.0, // Will be calculated properly later
+        estimated_duration_minutes: 15,
+      };
+
+      console.log('Creating trip with data:', tripData);
+
       const { data: trip, error: tripError } = await supabase
         .from('trips')
-        .insert({
-          user_id: user.id,
-          vehicle_id: selectedVehicle.id,
-          dispatch_mode: 'chase_car', // Default for MVP
-          status: 'requested', // This is "Looking for driver"
-          pickup_latitude: pickupLat,
-          pickup_longitude: pickupLng,
-          pickup_address: pickupAddress.trim(),
-          destination_latitude: destLat,
-          destination_longitude: destLng,
-          destination_address: destinationAddress.trim(),
-          user_notes: notes.trim() || null,
-          // Simple pricing for MVP - can be calculated later
-          base_fee: 25.00,
-          mileage_fee: 2.50,
-          total_price: 25.00, // Will be updated when driver accepts
-          estimated_distance_miles: 5.0, // Will be calculated properly later
-          estimated_duration_minutes: 15,
-        })
+        .insert(tripData)
         .select()
         .single();
 
       if (tripError) {
+        console.error('Trip creation error details:', tripError);
+        console.error('Error code:', tripError.code);
+        console.error('Error message:', tripError.message);
+        console.error('Error details:', tripError.details);
         throw tripError;
       }
 
@@ -180,7 +197,23 @@ export default function RequestRescueSimpleScreen() {
     } catch (error: any) {
       setLoading(false);
       console.error('Create trip error:', error);
-      Alert.alert('Error', error.message || 'Failed to create trip. Please try again.');
+      
+      // Better error messages for common issues
+      let errorMessage = 'Failed to create trip. Please try again.';
+      
+      if (error.code === '23503') {
+        errorMessage = 'Vehicle not found. Please add a vehicle first.';
+      } else if (error.code === '23505') {
+        errorMessage = 'A trip with this information already exists.';
+      } else if (error.code === '42501') {
+        errorMessage = 'Permission denied. Please check your account settings.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      Alert.alert('Error', errorMessage);
     }
   };
 
