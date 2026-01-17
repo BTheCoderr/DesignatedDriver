@@ -27,7 +27,7 @@ export default function UserHome() {
         <TouchableOpacity
           style={styles.rescueButton}
           activeOpacity={0.9}
-          onPress={() => router.push('/(user)/request-rescue')}
+          onPress={() => router.push('/(user)/request-rescue-simple')}
         >
           <View style={styles.rescueButtonInner}>
             <Text style={styles.rescueEmoji}>🚗</Text>

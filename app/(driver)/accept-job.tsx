@@ -46,8 +46,9 @@ export default function AcceptJobScreen() {
     }
 
     // Update trip with driver assignment
+    // Status 'dispatched' = "Accepted" in simplified flow
     const updateData: any = {
-      status: 'dispatched',
+      status: 'dispatched', // This is "Accepted" - driver en route
       dispatched_at: new Date().toISOString(),
     };
 

@@ -10,6 +10,7 @@ export default function TripCompleteScreen() {
   const [rating, setRating] = useState(0);
   const [tip, setTip] = useState('');
   const [review, setReview] = useState('');
+  const [wouldUseAgain, setWouldUseAgain] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
@@ -66,15 +67,13 @@ export default function TripCompleteScreen() {
 
       if (error) throw error;
 
-      // Log trip completed event
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await logTripCompleted(trip.id, user.id, {
-          rating,
-          tip_amount: tipAmount,
-          has_review: !!review,
-        });
-      }
+      // Log trip completed event with "would use again" feedback
+      await logTripCompleted(trip.id, user.id, {
+        rating,
+        tip_amount: tipAmount,
+        has_review: !!review,
+        would_use_again: wouldUseAgain,
+      });
 
       Alert.alert('Success', 'Thank you for your feedback!', [
         {
@@ -181,6 +180,40 @@ export default function TripCompleteScreen() {
           />
         </View>
 
+        <View style={styles.wouldUseAgainCard}>
+          <Text style={styles.wouldUseAgainTitle}>Would you use this again?</Text>
+          <View style={styles.wouldUseAgainButtons}>
+            <TouchableOpacity
+              style={[
+                styles.wouldUseAgainButton,
+                wouldUseAgain === true && styles.wouldUseAgainButtonSelected,
+              ]}
+              onPress={() => setWouldUseAgain(true)}
+            >
+              <Text style={[
+                styles.wouldUseAgainButtonText,
+                wouldUseAgain === true && styles.wouldUseAgainButtonTextSelected,
+              ]}>
+                ✓ Yes
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.wouldUseAgainButton,
+                wouldUseAgain === false && styles.wouldUseAgainButtonSelected,
+              ]}
+              onPress={() => setWouldUseAgain(false)}
+            >
+              <Text style={[
+                styles.wouldUseAgainButtonText,
+                wouldUseAgain === false && styles.wouldUseAgainButtonTextSelected,
+              ]}>
+                ✗ No
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={styles.claimButton}
           onPress={() => router.push(`/(user)/claim-damage?id=${trip.id}`)}
@@ -191,9 +224,9 @@ export default function TripCompleteScreen() {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.submitButton, (rating === 0 || submitting) && styles.buttonDisabled]}
+          style={[styles.submitButton, (rating === 0 || submitting || wouldUseAgain === null) && styles.buttonDisabled]}
           onPress={handleSubmit}
-          disabled={rating === 0 || submitting}
+          disabled={rating === 0 || submitting || wouldUseAgain === null}
         >
           {submitting ? (
             <Text style={styles.submitButtonText}>Submitting...</Text>
@@ -358,6 +391,45 @@ const styles = StyleSheet.create({
     minHeight: 100,
     borderWidth: 1,
     borderColor: '#2a2a2a',
+  },
+  wouldUseAgainCard: {
+    backgroundColor: '#1a1a1a',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  wouldUseAgainTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 16,
+  },
+  wouldUseAgainButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  wouldUseAgainButton: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2a2a2a',
+  },
+  wouldUseAgainButtonSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#1a1a3a',
+  },
+  wouldUseAgainButtonText: {
+    color: '#888',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  wouldUseAgainButtonTextSelected: {
+    color: '#007AFF',
   },
   claimButton: {
     backgroundColor: '#1a1a1a',

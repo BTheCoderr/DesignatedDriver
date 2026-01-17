@@ -101,13 +101,18 @@ export default function TripTrackingScreen() {
   }
 
   const getStatusText = () => {
+    // Simplified 4-state flow for MVP
     switch (trip.status) {
       case 'requested':
-        return 'Driver assigned, arriving soon...';
-      case 'driver_arrived':
-        return 'Driver has arrived';
+        return 'Looking for driver';
+      case 'dispatched':
+        return 'Driver accepted - En route';
+      case 'driver_arriving':
+        return 'Driver arriving';
+      case 'trunk_verified':
+        return 'Ready to start';
       case 'in_progress':
-        return 'Trip in progress';
+        return 'In progress';
       case 'completed':
         return 'Trip completed';
       case 'cancelled':
@@ -120,15 +125,19 @@ export default function TripTrackingScreen() {
   const getStatusColor = () => {
     switch (trip.status) {
       case 'requested':
-        return '#FFA500';
-      case 'driver_arrived':
-        return '#4CAF50';
+        return '#FFA500'; // Orange - Looking for driver
+      case 'dispatched':
+        return '#4CAF50'; // Green - Accepted/En route
+      case 'driver_arriving':
+        return '#4CAF50'; // Green - Arriving
+      case 'trunk_verified':
+        return '#4CAF50'; // Green - Ready
       case 'in_progress':
-        return '#007AFF';
+        return '#007AFF'; // Blue - In progress
       case 'completed':
-        return '#4CAF50';
+        return '#4CAF50'; // Green - Completed
       case 'cancelled':
-        return '#ff4444';
+        return '#ff4444'; // Red - Cancelled
       default:
         return '#888';
     }
