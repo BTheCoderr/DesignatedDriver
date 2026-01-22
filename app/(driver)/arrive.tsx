@@ -56,10 +56,15 @@ export default function ArriveScreen() {
       return;
     }
 
-    // Navigate to next step
+    // Navigate to next step based on dispatch mode
     if (trip.dispatch_mode === 'solo_scoot') {
+      // Scooter mode: trunk photo for device
       router.replace(`/(driver)/trunk-photo?id=${trip.id}`);
+    } else if (trip.dispatch_mode === 'chase_car') {
+      // Chase car mode: vehicle inspection (before photos)
+      router.replace(`/(driver)/vehicle-inspection?id=${trip.id}&type=before`);
     } else {
+      // Shadow mode or fallback
       router.replace(`/(driver)/drive?id=${trip.id}`);
     }
   };

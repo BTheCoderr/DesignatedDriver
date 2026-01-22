@@ -149,6 +149,32 @@ export default function DriveScreen() {
   const handleEndTrip = async () => {
     if (!trip) return;
 
+    // For chase car mode, require after photos before ending
+    if (trip.dispatch_mode === 'chase_car') {
+      // Check if after inspection exists
+      const { data: afterInspection } = await supabase
+        .from('vehicle_inspections')
+        .select('id')
+        .eq('trip_id', trip.id)
+        .eq('inspection_type', 'after')
+        .single();
+
+      if (!afterInspection) {
+        Alert.alert(
+          'After Photos Required',
+          'You must take after photos of the vehicle before completing the trip. This documents that no new damage was added.',
+          [
+            {
+              text: 'Take Photos',
+              onPress: () => router.replace(`/(driver)/vehicle-inspection?id=${trip.id}&type=after`),
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+    }
+
     Alert.alert(
       'End Trip',
       'Are you sure you have arrived at the destination?',

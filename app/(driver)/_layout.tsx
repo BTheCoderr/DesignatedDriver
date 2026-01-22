@@ -7,6 +7,7 @@ export default function DriverLayout() {
       <Stack.Screen name="accept-job" />
       <Stack.Screen name="arrive" />
       <Stack.Screen name="trunk-photo" />
+      <Stack.Screen name="vehicle-inspection" />
       <Stack.Screen name="drive" />
       <Stack.Screen name="end-trip" />
       <Stack.Screen name="gear-upload" />

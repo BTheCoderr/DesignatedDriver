@@ -11,6 +11,8 @@ export default function ClaimDamageScreen() {
   const [damageLocation, setDamageLocation] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
+  const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -36,6 +38,20 @@ export default function ClaimDamageScreen() {
     }
 
     setTrip(data);
+
+    // Load vehicle inspection photos (before/after) if they exist
+    const { data: inspections } = await supabase
+      .from('vehicle_inspections')
+      .select('inspection_type, photo_urls')
+      .eq('trip_id', id)
+      .order('created_at', { ascending: true });
+
+    if (inspections) {
+      const before = inspections.find(i => i.inspection_type === 'before');
+      const after = inspections.find(i => i.inspection_type === 'after');
+      setBeforePhotos(before?.photo_urls || []);
+      setAfterPhotos(after?.photo_urls || []);
+    }
   };
 
   const requestPermissions = async () => {
@@ -234,6 +250,37 @@ export default function ClaimDamageScreen() {
           </View>
         </View>
 
+        {(beforePhotos.length > 0 || afterPhotos.length > 0) && (
+          <View style={styles.inspectionCard}>
+            <Text style={styles.inspectionTitle}>Vehicle Inspection Photos</Text>
+            <Text style={styles.inspectionSubtitle}>
+              These photos were taken by the driver to document vehicle condition
+            </Text>
+            
+            {beforePhotos.length > 0 && (
+              <View style={styles.inspectionSection}>
+                <Text style={styles.inspectionLabel}>Before Trip ({beforePhotos.length} photos)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.inspectionPhotos}>
+                  {beforePhotos.map((url, index) => (
+                    <Image key={index} source={{ uri: url }} style={styles.inspectionPhoto} />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {afterPhotos.length > 0 && (
+              <View style={styles.inspectionSection}>
+                <Text style={styles.inspectionLabel}>After Trip ({afterPhotos.length} photos)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.inspectionPhotos}>
+                  {afterPhotos.map((url, index) => (
+                    <Image key={index} source={{ uri: url }} style={styles.inspectionPhoto} />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Damage Location</Text>
           <TextInput
@@ -395,6 +442,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     fontStyle: 'italic',
+  },
+  inspectionCard: {
+    backgroundColor: '#1a1a1a',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  inspectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  inspectionSubtitle: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 16,
+  },
+  inspectionSection: {
+    marginBottom: 16,
+  },
+  inspectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginBottom: 8,
+  },
+  inspectionPhotos: {
+    marginBottom: 8,
+  },
+  inspectionPhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+    marginRight: 8,
   },
   section: {
     marginBottom: 24,
