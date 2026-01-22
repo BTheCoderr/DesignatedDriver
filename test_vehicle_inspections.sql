@@ -100,13 +100,15 @@ BEGIN
   AND tablename = 'objects'
   AND (
     policyname LIKE '%vehicle%inspections%' 
-    OR definition LIKE '%vehicle-inspections%'
+    OR policyname LIKE '%vehicle%inspection%'
+    OR qual::text LIKE '%vehicle-inspections%'
+    OR with_check::text LIKE '%vehicle-inspections%'
   );
   
   IF policy_count > 0 THEN
     RAISE NOTICE '✅ Found % storage policies for vehicle-inspections', policy_count;
   ELSE
-    RAISE WARNING '⚠️ No storage policies found for vehicle-inspections bucket';
+    RAISE WARNING '⚠️ No storage policies found for vehicle-inspections bucket. Check that storage_policies.sql was run.';
   END IF;
 END $$;
 
