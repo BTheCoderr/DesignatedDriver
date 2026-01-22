@@ -104,7 +104,7 @@ export default function DriveScreen() {
     setStarting(true);
 
     try {
-      // Bind insurance policy
+      // Bind insurance policy (insurance switch event - per video script)
       const insuranceResult = await bindInsurancePolicy(trip.id);
 
       // Update insurance session
@@ -131,6 +131,13 @@ export default function DriveScreen() {
         .eq('id', trip.id);
 
       if (tripError) throw tripError;
+
+      // Show confirmation that insurance is bound
+      Alert.alert(
+        'Insurance Coverage Active ✅',
+        'Your insurance policy has been bound. Coverage is now active for this trip.',
+        [{ text: 'OK' }]
+      );
     } catch (error: any) {
       console.error('Error starting trip:', error);
       Alert.alert('Error', error.message || 'Failed to start trip');
@@ -269,7 +276,19 @@ export default function DriveScreen() {
         {!isInProgress && (
           <View style={styles.instructionCard}>
             <Text style={styles.instructionText}>
-              Once you're ready to begin driving, tap "Start Trip" to bind insurance coverage.
+              Once you're ready to begin driving, tap "Start Trip" to trigger the insurance session and begin coverage.
+            </Text>
+            <Text style={styles.instructionSubtext}>
+              The moment you hit "Start Trip," insurance coverage is bound for this trip.
+            </Text>
+          </View>
+        )}
+        
+        {isInProgress && (
+          <View style={styles.insuranceCard}>
+            <Text style={styles.insuranceTitle}>🛡️ Insurance Coverage Active</Text>
+            <Text style={styles.insuranceText}>
+              Policy bound at: {trip.started_at ? new Date(trip.started_at).toLocaleTimeString() : 'N/A'}
             </Text>
           </View>
         )}
@@ -441,6 +460,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  instructionSubtext: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  insuranceCard: {
+    backgroundColor: '#1a3a1a',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    marginTop: 8,
+  },
+  insuranceTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4CAF50',
+    marginBottom: 4,
+  },
+  insuranceText: {
+    fontSize: 12,
+    color: '#888',
   },
   buttonContainer: {
     padding: 24,

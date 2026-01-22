@@ -139,7 +139,8 @@ export default function ClaimDamageScreen() {
       // Upload all photos
       const photoUrls = await Promise.all(photos.map(uri => uploadPhoto(uri)));
 
-      // Create claim
+      // Create claim with timestamp
+      const claimTimestamp = new Date().toISOString();
       const { error } = await supabase
         .from('claims')
         .insert({
@@ -149,16 +150,21 @@ export default function ClaimDamageScreen() {
           photo_urls: photoUrls,
           damage_location: damageLocation,
           description,
+          // Timestamp is automatically set by created_at, but we log it
         });
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Damage claim submitted successfully!', [
-        {
-          text: 'OK',
-          onPress: () => router.replace('/(user)/'),
-        },
-      ]);
+      Alert.alert(
+        'Claim Submitted ✅',
+        `Your damage claim has been submitted with ${photoUrls.length} photo(s) at ${new Date(claimTimestamp).toLocaleString()}. Our team will review it shortly.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(user)/'),
+          },
+        ]
+      );
     } catch (error: any) {
       console.error('Error submitting claim:', error);
       Alert.alert('Error', error.message || 'Failed to submit claim');
@@ -188,16 +194,44 @@ export default function ClaimDamageScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        <View style={styles.headerCard}>
+          <Text style={styles.headerTitle}>Report Damage</Text>
+          <Text style={styles.headerSubtitle}>
+            Built-in damage claim flow with photos and timestamps
+          </Text>
+        </View>
+
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Trip Information</Text>
-          <Text style={styles.infoText}>
-            {trip.pickup_address} → {trip.destination_address}
-          </Text>
-          {trip.completed_at && (
-            <Text style={styles.infoDate}>
-              Completed: {new Date(trip.completed_at).toLocaleDateString()}
-            </Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>From:</Text>
+            <Text style={styles.infoValue}>{trip.pickup_address}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>To:</Text>
+            <Text style={styles.infoValue}>{trip.destination_address}</Text>
+          </View>
+          {trip.started_at && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Trip Started:</Text>
+              <Text style={styles.infoValue}>
+                {new Date(trip.started_at).toLocaleString()}
+              </Text>
+            </View>
           )}
+          {trip.completed_at && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Trip Completed:</Text>
+              <Text style={styles.infoValue}>
+                {new Date(trip.completed_at).toLocaleString()}
+              </Text>
+            </View>
+          )}
+          <View style={styles.timestampNote}>
+            <Text style={styles.timestampNoteText}>
+              📸 Claim will be timestamped automatically when submitted
+            </Text>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -304,6 +338,24 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
   },
+  headerCard: {
+    backgroundColor: '#1a1a1a',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#888',
+  },
   infoCard: {
     backgroundColor: '#1a1a1a',
     padding: 20,
@@ -316,16 +368,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  infoText: {
-    fontSize: 14,
+  infoRow: {
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 12,
     color: '#888',
     marginBottom: 4,
   },
-  infoDate: {
+  infoValue: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  timestampNote: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007AFF',
+  },
+  timestampNoteText: {
     fontSize: 12,
-    color: '#666',
+    color: '#888',
+    fontStyle: 'italic',
   },
   section: {
     marginBottom: 24,

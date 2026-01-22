@@ -182,9 +182,12 @@ export default function TrunkPhotoScreen() {
 
       <View style={styles.content}>
         <View style={styles.instructionCard}>
-          <Text style={styles.instructionTitle}>Take a photo of your device in the trunk</Text>
+          <Text style={styles.instructionTitle}>Trunk-Fit Photo (Liability Protection)</Text>
           <Text style={styles.instructionText}>
-            Make sure the device is clearly visible and secured in the trunk before taking the photo.
+            Before the trip starts, log a trunk-fit photo for liability protection. Make sure the device is clearly visible and secured in the trunk.
+          </Text>
+          <Text style={styles.instructionSubtext}>
+            This photo is part of our insurance documentation process and helps protect both you and the customer.
           </Text>
         </View>
 
@@ -287,6 +290,12 @@ const styles = StyleSheet.create({
   instructionText: {
     fontSize: 14,
     color: '#888',
+    marginBottom: 8,
+  },
+  instructionSubtext: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
   },
   photoContainer: {
     marginBottom: 16,
