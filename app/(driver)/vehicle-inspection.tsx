@@ -144,21 +144,47 @@ export default function VehicleInspectionScreen() {
       // Upload all photos
       const photoUrls = await Promise.all(photos.map(uri => uploadPhoto(uri)));
 
-      // Create or update inspection
-      const { error: inspectionError } = await supabase
+      // Check if inspection already exists (prevent duplicates)
+      const { data: existingInspection } = await supabase
         .from('vehicle_inspections')
-        .upsert({
-          trip_id: trip.id,
-          driver_id: user.id,
-          inspection_type: inspectionType,
-          photo_urls: photoUrls,
-          notes: notes.trim() || null,
-          driver_attestation: true,
-        }, {
-          onConflict: 'trip_id,inspection_type',
-        });
+        .select('id')
+        .eq('trip_id', trip.id)
+        .eq('inspection_type', inspectionType)
+        .single();
 
-      if (inspectionError) throw inspectionError;
+      let inspectionError;
+      
+      if (existingInspection) {
+        // Update existing inspection
+        const { error: updateError } = await supabase
+          .from('vehicle_inspections')
+          .update({
+            photo_urls: photoUrls,
+            notes: notes.trim() || null,
+            driver_attestation: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingInspection.id);
+        inspectionError = updateError;
+      } else {
+        // Create new inspection
+        const { error: insertError } = await supabase
+          .from('vehicle_inspections')
+          .insert({
+            trip_id: trip.id,
+            driver_id: user.id,
+            inspection_type: inspectionType,
+            photo_urls: photoUrls,
+            notes: notes.trim() || null,
+            driver_attestation: true,
+          });
+        inspectionError = insertError;
+      }
+
+      if (inspectionError) {
+        console.error('Inspection error details:', inspectionError);
+        throw inspectionError;
+      }
 
       // Navigate based on inspection type
       if (isBefore) {
