@@ -182,9 +182,17 @@ export default function VehicleInspectionScreen() {
       }
 
       if (inspectionError) {
-        console.error('Inspection error details:', inspectionError);
+        console.error("Supabase Error:", inspectionError); // Better error logging
         throw inspectionError;
       }
+
+      // ✅ SUCCESS!
+      Alert.alert(
+        "Success", 
+        isBefore 
+          ? "Vehicle verified. Starting trip..." 
+          : "Vehicle inspection complete. Ending trip..."
+      );
 
       // Navigate based on inspection type
       if (isBefore) {
