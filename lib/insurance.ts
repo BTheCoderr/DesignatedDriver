@@ -146,16 +146,62 @@ export async function getInsuranceSession(tripId: string): Promise<InsuranceSess
  * Wrapper: Binds insurance policy by trip ID
  */
 export async function bindInsurancePolicy(tripId: string): Promise<InsuranceSession> {
-  const session = await getInsuranceSession(tripId);
+  let session = await getInsuranceSession(tripId);
+  
+  // If session doesn't exist, create it (fallback for trips created before insurance was added)
   if (!session) {
-    throw new Error('Insurance session not found for trip');
+    console.warn('⚠️ Insurance session not found, creating one...');
+    
+    // Get trip details to create session
+    const { data: trip, error: tripError } = await supabase
+      .from('trips')
+      .select('vehicle_id, primary_driver_id')
+      .eq('id', tripId)
+      .single();
+    
+    if (tripError || !trip) {
+      throw new Error(`Trip not found: ${tripError?.message || 'Unknown error'}`);
+    }
+    
+    // Get vehicle details
+    const { data: vehicle, error: vehicleError } = await supabase
+      .from('vehicles')
+      .select('make, model, year, license_plate')
+      .eq('id', trip.vehicle_id)
+      .single();
+    
+    if (vehicleError || !vehicle || !vehicle.make || !vehicle.model || !vehicle.year || !vehicle.license_plate) {
+      throw new Error('Vehicle details incomplete. Cannot create insurance session.');
+    }
+    
+    // Create insurance session
+    const vehicleInfo: VehicleInfo = {
+      make: vehicle.make,
+      model: vehicle.model,
+      year: vehicle.year,
+      license_plate: vehicle.license_plate,
+    };
+    
+    const newSession = await createPolicySession(
+      tripId,
+      vehicleInfo,
+      trip.primary_driver_id || ''
+    );
+    
+    if (!newSession) {
+      throw new Error('Failed to create insurance session');
+    }
+    
+    session = newSession as any;
   }
+  
   const result = await bindPolicy(session.id, tripId);
   if (!result) {
     throw new Error('Failed to bind insurance policy');
   }
-  // Return as InsuranceSession for compatibility
-  return session;
+  
+  // Return updated session
+  return result as InsuranceSession;
 }
 
 /**
