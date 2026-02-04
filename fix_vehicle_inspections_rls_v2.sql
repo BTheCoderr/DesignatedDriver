@@ -4,14 +4,16 @@
 -- More permissive policies for testing, then we can tighten later
 -- ============================================
 
--- Drop ALL existing policies
+-- Drop ALL existing policies (comprehensive list)
 DROP POLICY IF EXISTS "Drivers can insert inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can view own inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can view their own inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Users can view inspections for their trips" ON public.vehicle_inspections;
+DROP POLICY IF EXISTS "Users can view trip inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can update own inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can create inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can view trip inspections" ON public.vehicle_inspections;
+DROP POLICY IF EXISTS "Drivers can update their inspections" ON public.vehicle_inspections;
 
 -- ============================================
 -- MORE PERMISSIVE POLICIES (For Testing)
