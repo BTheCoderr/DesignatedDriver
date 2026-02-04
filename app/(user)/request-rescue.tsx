@@ -1,30 +1,34 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, SafeAreaView } from 'react-native';
-import { supabase, type Vehicle } from '@/lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, Alert, ScrollView, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { selectDispatchMode, calculatePrice, type TripData } from '@/lib/dispatcher';
+import { supabase, type Vehicle } from '@/lib/supabase';
+import { createBooking } from '@/lib/booking';
 import { detectCityDensity, DEFAULT_LOCATION } from '@/lib/cityDetection';
-import * as Location from 'expo-location';
 import { logTripRequested } from '@/lib/analytics';
 
 export default function RequestRescueScreen() {
-  const [step, setStep] = useState(1); // 1: vehicle, 2: destination, 3: confirm, 4: creating
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [destination, setDestination] = useState('');
-  const [destinationCoords, setDestinationCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [pickupAddress, setPickupAddress] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [dispatchResult, setDispatchResult] = useState<any>(null);
   const router = useRouter();
+  const [step, setStep] = useState(1); // 1: Vehicle, 2: Destination, 3: Confirm
+  const [loading, setLoading] = useState(false);
+  
+  // Data State
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [destinationAddress, setDestinationAddress] = useState('');
+  
+  // Hardcoded "Current Location" for MVP testing (Providence)
+  const pickupLocation = { 
+    lat: DEFAULT_LOCATION.lat, 
+    lng: DEFAULT_LOCATION.lng, 
+    address: DEFAULT_LOCATION.address 
+  };
 
   useEffect(() => {
-    loadVehicles();
-    getCurrentLocation();
+    fetchVehicles();
   }, []);
 
-  const loadVehicles = async () => {
+  async function fetchVehicles() {
+    // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -34,695 +38,319 @@ export default function RequestRescueScreen() {
       .eq('user_id', user.id);
 
     if (error) {
-      console.error('Error loading vehicles:', error);
+      console.error('Error fetching vehicles:', error);
       return;
     }
 
-    setVehicles(data || []);
-    if (data && data.length > 0) {
-      setSelectedVehicle(data[0]);
-    }
-  };
+    if (data) setVehicles(data);
+  }
 
-  const getCurrentLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        // Fallback to default location (Providence, RI)
-        console.log('Location permission denied, using default: Providence, RI');
-        setPickupCoords({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng });
-        setPickupAddress(DEFAULT_LOCATION.address);
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-      setPickupCoords({ lat: latitude, lng: longitude });
-
-      // Reverse geocode to get address
-      try {
-        const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
-        if (geocode.length > 0) {
-          const addr = geocode[0];
-          setPickupAddress(`${addr.street || ''} ${addr.city || ''}, ${addr.region || ''}`.trim());
-        } else {
-          setPickupAddress(DEFAULT_LOCATION.address);
-        }
-      } catch (geocodeError) {
-        // If geocoding fails, use default
-        console.log('Geocoding failed, using default location');
-        setPickupAddress(DEFAULT_LOCATION.address);
-      }
-    } catch (error) {
-      console.error('Location error:', error);
-      // Fallback to default location on error
-      setPickupCoords({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng });
-      setPickupAddress(DEFAULT_LOCATION.address);
-    }
-  };
-
-  const handleNext = async () => {
-    if (step === 1) {
-      if (!selectedVehicle) {
-        Alert.alert('Error', 'Please select a vehicle');
-        return;
-      }
-      // Validate vehicle has all required fields for insurance
-      if (!selectedVehicle.make || !selectedVehicle.model || !selectedVehicle.year) {
-        Alert.alert(
-          'Incomplete Vehicle Information',
-          'This vehicle is missing required information (make, model, or year). Please update the vehicle details before requesting a rescue.',
-          [
-            {
-              text: 'Update Vehicle',
-              onPress: () => router.push('/(user)/vehicles'),
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
-        return;
-      }
-      if (!selectedVehicle.license_plate || !selectedVehicle.color) {
-        Alert.alert(
-          'Incomplete Vehicle Information',
-          'License plate and color are required for insurance coverage. Please update the vehicle details before requesting a rescue.',
-          [
-            {
-              text: 'Update Vehicle',
-              onPress: () => router.push('/(user)/vehicles'),
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
-        return;
-      }
-      setStep(2);
-    } else if (step === 2) {
-      if (!destination.trim()) {
-        Alert.alert('Error', 'Please enter a destination');
-        return;
-      }
-      // For MVP, use a simple geocoding (you'd use a real geocoding service in production)
-      // For now, we'll create the trip with the address and let backend handle it
-      await calculateDispatch();
-    }
-  };
-
-  const calculateDispatch = async () => {
-    if (!selectedVehicle || !pickupCoords || !destination.trim()) return;
+  async function handleRequestRescue() {
+    if (!selectedVehicleId || !destinationAddress) return;
 
     setLoading(true);
-    setStep(3);
-
     try {
-      // For MVP: No driver assignment at request time
-      // Drivers will see and accept jobs from their dashboard
-      // Empty array - we're just calculating price/mode, not assigning drivers
-      const availableDrivers: any[] = [];
-
-      // Calculate distance (simplified for MVP - use real distance calculation)
-      const distance = 5.0; // miles (would calculate from coords)
-
-      // Detect city density from pickup location
-      const cityDensity = detectCityDensity(pickupCoords.lat, pickupCoords.lng);
-
-      const tripData: TripData = {
-        pickup: {
-          lat: pickupCoords.lat,
-          lng: pickupCoords.lng,
-          address: pickupAddress || 'Current location',
-        },
-        destination: {
-          lat: destinationCoords?.lat || pickupCoords.lat + 0.05,
-          lng: destinationCoords?.lng || pickupCoords.lng + 0.05,
-          address: destination,
-        },
-        distance,
-        timeOfDay: new Date().getHours(),
-        weather: 'clear', // TODO: Integrate weather API
-        cityDensity, // Auto-detected from location
-        isWeekend: [0, 6].includes(new Date().getDay()),
+      // 1. Mock Geocoding (In real app, use Mapbox/Google API here)
+      // For MVP, we'll use a slightly offset location to simulate distance
+      const mockDestination = {
+        lat: pickupLocation.lat + 0.01, // Slightly different lat for testing distance
+        lng: pickupLocation.lng + 0.01,
+        address: destinationAddress
       };
 
-      const result = await selectDispatchMode(tripData, availableDrivers);
+      // 2. Detect city density from pickup location
+      const cityDensity = detectCityDensity(pickupLocation.lat, pickupLocation.lng);
+
+      // 3. Call our Booking Logic
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const trip = await createBooking({
+        userId: user.id,
+        vehicleId: selectedVehicleId,
+        pickup: pickupLocation,
+        destination: mockDestination,
+        cityDensity: cityDensity // Use detected density instead of hardcoded
+      });
+
+      // 4. Log analytics
+      await logTripRequested(trip.id, user.id, {
+        dispatch_mode: trip.dispatch_mode,
+        estimated_price: trip.total_price || 0,
+      });
+
+      Alert.alert(
+        "Rescue Requested!", 
+        `Dispatching ${trip.dispatch_mode === 'solo_scoot' ? 'Solo-Scoot' : 'Chase Car'} driver...`,
+        [
+          {
+            text: 'Track Trip',
+            onPress: () => router.replace(`/(user)/trip-tracking?id=${trip.id}`)
+          }
+        ]
+      );
       
-      // Price is always included in DispatchResult now
-      setDispatchResult(result);
-      setStep(4);
-    } catch (error) {
-      console.error('Dispatch error:', error);
-      Alert.alert('Error', 'Failed to calculate dispatch. Please try again.');
-      setStep(2);
+      // Navigate to Tracking
+      router.replace(`/(user)/trip-tracking?id=${trip.id}`);
+
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      Alert.alert(
+        "Error", 
+        error.message || "Failed to request rescue. Please try again."
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleConfirm = async () => {
-    if (!selectedVehicle || !pickupCoords || !destination.trim() || !dispatchResult) return;
+  const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
 
-    setLoading(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Error', 'Not authenticated');
-        return;
-      }
-
-      const distance = 5.0; // Would calculate from coords
-
-      // Ensure destination_address is not empty (required field)
-      const finalDestinationAddress = destination.trim();
-      if (!finalDestinationAddress) {
-        Alert.alert('Error', 'Destination address is required');
-        setLoading(false);
-        return;
-      }
-
-      // Prepare trip data with proper types
-      const tripData = {
-        user_id: user.id,
-        vehicle_id: selectedVehicle.id,
-        dispatch_mode: dispatchResult.mode as 'chase_car' | 'solo_scoot' | 'shadow',
-        status: 'requested' as const,
-        pickup_latitude: Number(pickupCoords.lat),
-        pickup_longitude: Number(pickupCoords.lng),
-        pickup_address: (pickupAddress || 'Current location').trim(),
-        destination_latitude: Number(destinationCoords?.lat || pickupCoords.lat + 0.05),
-        destination_longitude: Number(destinationCoords?.lng || pickupCoords.lng + 0.05),
-        destination_address: finalDestinationAddress, // Required field
-        // Don't assign drivers yet - they'll accept the job later
-        primary_driver_id: null,
-        chase_driver_id: null,
-        base_fee: dispatchResult.price?.base_fee || 0,
-        mileage_fee: dispatchResult.price?.mileage_fee || 0,
-        surge_multiplier: dispatchResult.price?.surge_multiplier || 1.0,
-        total_price: dispatchResult.price?.total || 0,
-        estimated_distance_miles: distance,
-        estimated_duration_minutes: dispatchResult.estimatedArrival || 15,
-      };
-
-      console.log('Creating trip with data:', tripData);
-
-      const { data: trip, error: tripError } = await supabase
-        .from('trips')
-        .insert(tripData)
-        .select()
-        .single();
-
-      if (tripError) {
-        console.error('Trip creation error details:', tripError);
-        console.error('Error code:', tripError.code);
-        console.error('Error message:', tripError.message);
-        console.error('Error details:', tripError.details);
-        throw tripError;
-      }
-
-      // Create insurance session
-      const { error: insuranceError } = await supabase
-        .from('insurance_sessions')
-        .insert({
-          trip_id: trip.id,
-          policy_status: 'not_started',
-          vehicle_make: selectedVehicle.make,
-          vehicle_model: selectedVehicle.model,
-          vehicle_year: selectedVehicle.year,
-          license_plate: selectedVehicle.license_plate,
-        });
-
-      if (insuranceError) {
-        console.error('Insurance session error:', insuranceError);
-      }
-
-      // Log trip requested event
-      await logTripRequested(trip.id, user.id, {
-        dispatch_mode: dispatchResult.mode,
-        vehicle_id: selectedVehicle.id,
-        total_price: dispatchResult.price?.total || 0,
-        distance: distance,
-      });
-
-      setLoading(false);
+  // --- Step 1: Select Vehicle ---
+  const renderStep1 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.header}>Select Your Vehicle</Text>
+      <Text style={styles.subHeader}>Which car needs a driver?</Text>
       
-      // Show success message before navigating
-      Alert.alert(
-        'Request Submitted! ✅',
-        'We\'re looking for a driver. You\'ll be notified when one accepts.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace(`/(user)/trip-tracking?id=${trip.id}`),
-          },
-        ]
-      );
-    } catch (error: any) {
-      setLoading(false);
-      console.error('Create trip error:', error);
-      
-      // Better error messages for common issues
-      let errorMessage = 'Failed to create trip. Please try again.';
-      
-      if (error.code === '23503') {
-        errorMessage = 'Vehicle not found. Please add a vehicle first.';
-      } else if (error.code === '23505') {
-        errorMessage = 'A trip with this information already exists.';
-      } else if (error.code === '42501') {
-        errorMessage = 'Permission denied. Please check your account settings.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      Alert.alert('Error', errorMessage);
-    }
-  };
+      <ScrollView style={styles.list}>
+        {vehicles.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No vehicles found.</Text>
+            <Text style={styles.emptySubtext}>Please add one in settings.</Text>
+            <TouchableOpacity 
+              style={styles.addVehicleBtn}
+              onPress={() => router.push('/(user)/vehicles')}
+            >
+              <Text style={styles.addVehicleBtnText}>Add Vehicle</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          vehicles.map((v) => (
+            <TouchableOpacity 
+              key={v.id} 
+              style={[styles.card, selectedVehicleId === v.id && styles.selectedCard]}
+              onPress={() => setSelectedVehicleId(v.id)}
+            >
+              <Text style={styles.cardTitle}>
+                {v.year} {v.make} {v.model}
+              </Text>
+              <Text style={styles.cardSub}>
+                {v.license_plate || 'No plate'} • {v.color || 'No color'}
+              </Text>
+              {(!v.make || !v.model || !v.year || !v.license_plate) && (
+                <Text style={styles.warningText}>
+                  ⚠️ Missing required info for insurance
+                </Text>
+              )}
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
 
-  const handleAddVehicle = () => {
-    router.push('/(user)/vehicles');
-  };
+      <TouchableOpacity 
+        style={[styles.btn, !selectedVehicleId && styles.btnDisabled]}
+        disabled={!selectedVehicleId}
+        onPress={() => {
+          // Validate vehicle has required fields before proceeding
+          if (selectedVehicle && (!selectedVehicle.make || !selectedVehicle.model || !selectedVehicle.year || !selectedVehicle.license_plate)) {
+            Alert.alert(
+              'Incomplete Vehicle Information',
+              'This vehicle is missing required information for insurance coverage. Please update the vehicle details before requesting a rescue.',
+              [
+                {
+                  text: 'Update Vehicle',
+                  onPress: () => router.push('/(user)/vehicles'),
+                },
+                { text: 'Cancel', style: 'cancel' },
+              ]
+            );
+            return;
+          }
+          setStep(2);
+        }}
+      >
+        <Text style={styles.btnText}>Next: Destination</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // --- Step 2: Destination ---
+  const renderStep2 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.header}>Where are we going?</Text>
+      <Text style={styles.subHeader}>Enter drop-off location</Text>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Pickup</Text>
+        <TextInput 
+          value={pickupLocation.address} 
+          editable={false} 
+          style={[styles.input, styles.disabledInput]} 
+        />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Destination</Text>
+        <TextInput 
+          value={destinationAddress}
+          onChangeText={setDestinationAddress}
+          placeholder="e.g. 123 Main St, Providence, RI"
+          style={styles.input}
+          autoFocus
+        />
+      </View>
+
+      <View style={styles.row}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => setStep(1)}>
+          <Text style={styles.backBtnText}>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.btn, styles.flexBtn, !destinationAddress && styles.btnDisabled]}
+          disabled={!destinationAddress}
+          onPress={() => setStep(3)}
+        >
+          <Text style={styles.btnText}>Review Quote</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  // --- Step 3: Review & Confirm ---
+  const renderStep3 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.header}>Confirm Rescue</Text>
+      <Text style={styles.subHeader}>Review details before dispatch</Text>
+
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Vehicle</Text>
+          <Text style={styles.summaryValue}>
+            {selectedVehicle ? `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}` : 'N/A'}
+          </Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>From</Text>
+          <Text style={styles.summaryValue}>{pickupLocation.address}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>To</Text>
+          <Text style={styles.summaryValue}>{destinationAddress}</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Est. Price</Text>
+          {/* Note: In a real app, you'd calculate this BEFORE this step to show user. 
+              For MVP, we show a range since actual price depends on dispatch mode */}
+          <Text style={styles.summaryValue}>$25.00 - $35.00</Text>
+        </View>
+        <Text style={styles.disclaimer}>
+          Final price depends on Solo-Scoot or Chase Car availability.
+        </Text>
+      </View>
+
+      <View style={styles.row}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => setStep(2)}>
+          <Text style={styles.backBtnText}>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.btn, styles.flexBtn, styles.confirmBtn]}
+          onPress={handleRequestRescue}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.btnText}>Request Now</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Pricing Info Banner */}
-        {step === 1 && (
-          <View style={styles.pricingBanner}>
-            <Text style={styles.pricingBannerTitle}>💰 Pricing</Text>
-            <Text style={styles.pricingBannerText}>
-              Based on distance, time, and demand. Flat minimum per trip. See breakdown before confirming.
-            </Text>
-          </View>
-        )}
-
-        {/* Step 1: Select Vehicle */}
-        {step === 1 && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Select Your Vehicle</Text>
-            {vehicles.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>No vehicles added yet</Text>
-                <TouchableOpacity style={styles.addButton} onPress={handleAddVehicle}>
-                  <Text style={styles.addButtonText}>+ Add Vehicle</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.vehicleList}>
-                {vehicles.map((vehicle) => (
-                  <TouchableOpacity
-                    key={vehicle.id}
-                    style={[
-                      styles.vehicleCard,
-                      selectedVehicle?.id === vehicle.id && styles.vehicleCardSelected,
-                    ]}
-                    onPress={() => setSelectedVehicle(vehicle)}
-                  >
-                    <Text style={styles.vehicleName}>
-                      {vehicle.year} {vehicle.make} {vehicle.model}
-                    </Text>
-                    {vehicle.license_plate && (
-                      <Text style={styles.vehiclePlate}>{vehicle.license_plate}</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity style={styles.addButton} onPress={handleAddVehicle}>
-                  <Text style={styles.addButtonText}>+ Add Another Vehicle</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Step 2: Enter Destination */}
-        {step === 2 && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Where are you going?</Text>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Destination Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="123 Main St, City, State"
-                placeholderTextColor="#666"
-                value={destination}
-                onChangeText={setDestination}
-                autoCapitalize="words"
-              />
-            </View>
-            <View style={styles.pickupInfo}>
-              <Text style={styles.pickupLabel}>Pickup Location:</Text>
-              <Text style={styles.pickupText}>
-                {pickupAddress || 'Getting your location...'}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Step 3: Loading Dispatch */}
-        {step === 3 && (
-          <View style={styles.stepContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Finding the best driver...</Text>
-          </View>
-        )}
-
-        {/* Step 4: Confirm & Price */}
-        {step === 4 && dispatchResult && (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Confirm Your Trip</Text>
-            <View style={styles.confirmCard}>
-              <View style={styles.confirmRow}>
-                <Text style={styles.confirmLabel}>Mode:</Text>
-                <Text style={styles.confirmValue}>
-                  {dispatchResult.mode === 'solo_scoot' ? '🚴 Solo-Scoot' : '🚗 Chase Car'}
-                </Text>
-              </View>
-              <View style={styles.confirmRow}>
-                <Text style={styles.confirmLabel}>From:</Text>
-                <Text style={styles.confirmValue}>{pickupAddress || 'Current location'}</Text>
-              </View>
-              <View style={styles.confirmRow}>
-                <Text style={styles.confirmLabel}>To:</Text>
-                <Text style={styles.confirmValue}>{destination}</Text>
-              </View>
-              <View style={styles.priceSection}>
-                <Text style={styles.priceLabel}>Price Breakdown</Text>
-                {dispatchResult.price && (
-                  <>
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceText}>Base Fee:</Text>
-                      <Text style={styles.priceAmount}>${dispatchResult.price.base_fee.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceText}>Mileage:</Text>
-                      <Text style={styles.priceAmount}>${dispatchResult.price.mileage_fee.toFixed(2)}</Text>
-                    </View>
-                    {dispatchResult.price.surge_multiplier > 1 && (
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceText}>Surge ({dispatchResult.price.surge_multiplier}x):</Text>
-                        <Text style={styles.priceAmount}>
-                          ${dispatchResult.price.breakdown.surge.toFixed(2)}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceText}>Platform Fee:</Text>
-                      <Text style={styles.priceAmount}>${dispatchResult.price.platform_fee.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceText}>Taxes:</Text>
-                      <Text style={styles.priceAmount}>${dispatchResult.price.taxes.toFixed(2)}</Text>
-                    </View>
-                    <View style={[styles.priceRow, styles.priceTotal]}>
-                      <Text style={styles.priceTotalLabel}>Total:</Text>
-                      <Text style={styles.priceTotalAmount}>${dispatchResult.price.total.toFixed(2)}</Text>
-                    </View>
-                  </>
-                )}
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Navigation Buttons */}
-        <View style={styles.buttonContainer}>
-          {step > 1 && step < 4 && (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => setStep(step - 1)}
-              disabled={loading}
-            >
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          )}
-          {step < 4 && (
-            <TouchableOpacity
-              style={[styles.nextButton, loading && styles.buttonDisabled]}
-              onPress={handleNext}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.nextButtonText}>
-                  {step === 1 ? 'Next' : step === 2 ? 'Find Driver' : 'Confirm'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
-          {step === 4 && (
-            <TouchableOpacity
-              style={[styles.confirmButton, loading && styles.buttonDisabled]}
-              onPress={handleConfirm}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.confirmButtonText}>Confirm & Request</Text>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScrollView>
+      {step === 1 && renderStep1()}
+      {step === 2 && renderStep2()}
+      {step === 3 && renderStep3()}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  stepContainer: { flex: 1, padding: 20, paddingTop: 20 },
+  header: { fontSize: 28, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 8 },
+  subHeader: { fontSize: 16, color: '#666', marginBottom: 30 },
+  list: { flex: 1 },
+  
+  // Cards
+  card: { 
+    backgroundColor: '#fff', 
+    padding: 16, 
+    borderRadius: 12, 
+    marginBottom: 12, 
+    borderWidth: 1, 
+    borderColor: '#eee' 
   },
-  scrollView: {
-    flex: 1,
+  selectedCard: { 
+    borderColor: '#007AFF', 
+    backgroundColor: '#f0f9ff',
+    borderWidth: 2
   },
-  scrollContent: {
-    padding: 24,
+  cardTitle: { fontSize: 18, fontWeight: '600', color: '#1a1a1a' },
+  cardSub: { fontSize: 14, color: '#666', marginTop: 4 },
+  warningText: { fontSize: 12, color: '#ff6b6b', marginTop: 8, fontWeight: '500' },
+  
+  // Empty state
+  emptyContainer: { alignItems: 'center', marginTop: 60 },
+  emptyText: { textAlign: 'center', color: '#999', fontSize: 16, marginBottom: 8 },
+  emptySubtext: { textAlign: 'center', color: '#999', fontSize: 14, marginBottom: 20 },
+  addVehicleBtn: { backgroundColor: '#007AFF', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  addVehicleBtnText: { color: '#fff', fontWeight: '600' },
+
+  // Inputs
+  inputContainer: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: '#333' },
+  input: { 
+    backgroundColor: '#fff', 
+    padding: 16, 
+    borderRadius: 12, 
+    fontSize: 16, 
+    borderWidth: 1, 
+    borderColor: '#ddd' 
   },
-  stepContainer: {
-    marginBottom: 32,
+  disabledInput: { backgroundColor: '#f0f0f0', color: '#888' },
+
+  // Summary
+  summaryCard: { 
+    backgroundColor: '#fff', 
+    padding: 20, 
+    borderRadius: 16, 
+    marginBottom: 30, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.05, 
+    shadowRadius: 10, 
+    elevation: 2 
   },
-  stepTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 24,
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  summaryLabel: { fontSize: 16, color: '#666' },
+  summaryValue: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', flex: 1, textAlign: 'right' },
+  divider: { height: 1, backgroundColor: '#eee', marginVertical: 12 },
+  disclaimer: { fontSize: 12, color: '#999', marginTop: 8, textAlign: 'center' },
+
+  // Buttons
+  row: { flexDirection: 'row', gap: 12 },
+  flexBtn: { flex: 1 },
+  btn: { 
+    backgroundColor: '#000', 
+    padding: 18, 
+    borderRadius: 12, 
+    alignItems: 'center', 
+    marginTop: 'auto' 
   },
-  vehicleList: {
-    gap: 12,
-  },
-  vehicleCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#2a2a2a',
-  },
-  vehicleCardSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#1a1a3a',
-  },
-  vehicleName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  vehiclePlate: {
-    fontSize: 14,
-    color: '#888',
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    color: '#888',
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  addButton: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#007AFF',
-    borderStyle: 'dashed',
-  },
-  addButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 8,
-    paddingLeft: 4,
-  },
-  input: {
-    backgroundColor: '#1a1a1a',
-    color: '#fff',
-    padding: 18,
-    borderRadius: 12,
-    fontSize: 16,
-    borderWidth: 1.5,
-    borderColor: '#2a2a2a',
-  },
-  pickupInfo: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 12,
-  },
-  pickupLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
-  },
-  pickupText: {
-    fontSize: 16,
-    color: '#fff',
-  },
-  loadingText: {
-    color: '#888',
-    fontSize: 16,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  confirmCard: {
-    backgroundColor: '#1a1a1a',
-    padding: 24,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-  },
-  confirmRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  confirmLabel: {
-    fontSize: 14,
-    color: '#888',
-    flex: 1,
-  },
-  confirmValue: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
-    flex: 2,
-    textAlign: 'right',
-  },
-  priceSection: {
-    marginTop: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
-  },
-  priceLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 16,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  priceText: {
-    fontSize: 14,
-    color: '#888',
-  },
-  priceAmount: {
-    fontSize: 14,
-    color: '#fff',
-  },
-  priceTotal: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
-  },
-  priceTotalLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  priceTotalAmount: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#007AFF',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  backButton: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  nextButton: {
-    flex: 2,
-    backgroundColor: '#007AFF',
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  nextButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  confirmButton: {
-    flex: 1,
-    backgroundColor: '#007AFF',
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  pricingBanner: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-  },
-  pricingBannerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginBottom: 8,
-  },
-  pricingBannerText: {
-    fontSize: 14,
-    color: '#888',
-    lineHeight: 20,
-  },
+  confirmBtn: { backgroundColor: '#28a745' },
+  btnDisabled: { backgroundColor: '#ccc' },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  backBtn: { padding: 18, alignItems: 'center', justifyContent: 'center' },
+  backBtnText: { color: '#666', fontSize: 16 },
 });
