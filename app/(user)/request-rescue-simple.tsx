@@ -5,7 +5,9 @@ import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, SafeAreaView } from 'react-native';
 import { supabase, type Vehicle } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
-import { DEFAULT_LOCATION } from '@/lib/cityDetection';
+import { DEFAULT_LOCATION, detectCityDensity } from '@/lib/cityDetection';
+import { selectDispatchMode, calculatePrice, type TripData } from '@/lib/dispatcher';
+import { getDemoMode } from '@/lib/demoConfig';
 import * as Location from 'expo-location';
 import { logTripRequested } from '@/lib/analytics';
 
@@ -137,11 +139,55 @@ export default function RequestRescueSimpleScreen() {
         return;
       }
 
+      // Calculate distance (simplified - use real calculation in production)
+      const distance = Math.sqrt(
+        Math.pow(destLat - pickupLat, 2) + Math.pow(destLng - pickupLng, 2)
+      ) * 69; // Rough conversion to miles
+
+      // Detect city density and determine dispatch mode
+      const cityDensity = detectCityDensity(pickupLat, pickupLng);
+      const timeOfDay = new Date().getHours();
+      const isWeekend = [0, 6].includes(new Date().getDay());
+
+      // Use dispatcher to determine mode (respects demo override)
+      const dispatchTripData: TripData = {
+        pickup: {
+          lat: pickupLat,
+          lng: pickupLng,
+          address: pickupAddress.trim() || 'Current location',
+        },
+        destination: {
+          lat: destLat,
+          lng: destLng,
+          address: finalDestinationAddress,
+        },
+        distance,
+        timeOfDay,
+        weather: 'clear', // TODO: Integrate weather API
+        cityDensity,
+        isWeekend,
+      };
+
+      // Get dispatch result (will respect DEMO_FORCE_MODE if set)
+      const dispatchResult = await selectDispatchMode(dispatchTripData, []);
+      
+      // Determine dispatch mode (use demo override or dispatcher result)
+      const dispatchMode = getDemoMode() || dispatchResult.mode || 'chase_car';
+      
+      // Calculate price
+      const price = dispatchResult.price || calculatePrice(
+        dispatchMode,
+        distance,
+        timeOfDay,
+        'clear',
+        isWeekend
+      );
+
       // Create simple trip - status = 'requested' (Looking for driver)
       const tripData = {
         user_id: user.id,
         vehicle_id: selectedVehicle.id,
-        dispatch_mode: 'chase_car' as const, // Default for MVP
+        dispatch_mode: dispatchMode as 'chase_car' | 'solo_scoot',
         status: 'requested' as const, // This is "Looking for driver"
         pickup_latitude: Number(pickupLat),
         pickup_longitude: Number(pickupLng),
@@ -150,13 +196,12 @@ export default function RequestRescueSimpleScreen() {
         destination_longitude: Number(destLng),
         destination_address: finalDestinationAddress, // Required field
         user_notes: notes.trim() || null,
-        // Simple pricing for MVP - can be calculated later
-        base_fee: 25.00,
-        mileage_fee: 2.50,
-        surge_multiplier: 1.0,
-        total_price: 25.00, // Will be updated when driver accepts
-        estimated_distance_miles: 5.0, // Will be calculated properly later
-        estimated_duration_minutes: 15,
+        base_fee: price.base_fee,
+        mileage_fee: price.mileage_fee,
+        surge_multiplier: price.surge_multiplier,
+        total_price: price.total,
+        estimated_distance_miles: distance,
+        estimated_duration_minutes: dispatchResult.estimatedArrival || 15,
       };
 
       console.log('Creating trip with data:', tripData);

@@ -2,6 +2,7 @@
 // Logs key events for YC metrics: signup, request, completion
 
 import { supabase } from './supabase';
+import { log, error } from './logger';
 
 export type AnalyticsEvent = 
   | 'signup'
@@ -36,16 +37,16 @@ export async function logEvent(data: AnalyticsData) {
       timestamp: new Date().toISOString(),
     };
 
-    // Console log for development
-    console.log('[Analytics]', logData);
+    // Log for development (respects demo mode)
+    log('[Analytics]', logData);
 
     // Optionally store in Supabase analytics table (if you create one)
     // For now, we'll just log to console
     // This is sufficient for YC demo - they just need to see you're tracking metrics
     
     return true;
-  } catch (error) {
-    console.error('Analytics error:', error);
+  } catch (err) {
+    error('Analytics error:', err);
     return false;
   }
 }

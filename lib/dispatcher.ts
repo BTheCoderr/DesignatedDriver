@@ -1,4 +1,5 @@
 import { supabase, type Trip, type DriverGear, type Profile } from './supabase';
+import { DEMO_FORCE_MODE, DEMO_MODE_REASON } from './demoConfig';
 
 export interface TripData {
   pickup: { lat: number; lng: number; address: string };
@@ -80,6 +81,48 @@ export async function selectDispatchMode(
   tripData: TripData,
   availableDrivers: AvailableDriver[]
 ): Promise<DispatchResult> {
+  // DEMO OVERRIDE: Check for forced mode first
+  if (DEMO_FORCE_MODE) {
+    const { distance, timeOfDay, weather, isWeekend } = tripData;
+    
+    // Filter drivers based on forced mode
+    let primaryDriver: AvailableDriver | null = null;
+    let chaseDriver: AvailableDriver | null = null;
+    
+    if (DEMO_FORCE_MODE === 'solo_scoot') {
+      const soloScootDrivers = availableDrivers.filter(
+        (d) => d.gear_verified === 'verified' && d.gear_type !== 'none' && d.is_available === true
+      );
+      primaryDriver = soloScootDrivers.length > 0 
+        ? selectBestDriver(soloScootDrivers, tripData.pickup)
+        : null;
+    } else if (DEMO_FORCE_MODE === 'chase_car') {
+      const chaseCarDrivers = availableDrivers.filter((d) => d.is_available === true);
+      if (chaseCarDrivers.length >= 2) {
+        const drivers = selectChaseCarPair(chaseCarDrivers, tripData.pickup);
+        primaryDriver = drivers.primary;
+        chaseDriver = drivers.chase;
+      } else if (chaseCarDrivers.length === 1) {
+        primaryDriver = chaseCarDrivers[0];
+        chaseDriver = chaseCarDrivers[0]; // Use same driver for demo
+      }
+    }
+    
+    const price = calculatePrice(DEMO_FORCE_MODE, distance, timeOfDay, weather, isWeekend);
+    const estimatedArrival = primaryDriver
+      ? estimateArrivalTime(primaryDriver, tripData.pickup)
+      : null;
+    
+    return {
+      mode: DEMO_FORCE_MODE,
+      primaryDriver,
+      chaseDriver,
+      price,
+      priceEstimate: price,
+      estimatedArrival,
+    };
+  }
+
   const { distance, timeOfDay, weather, cityDensity, isWeekend } = tripData;
 
   // Filter available drivers

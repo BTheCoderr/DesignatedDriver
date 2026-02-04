@@ -27,10 +27,14 @@ ON storage.objects FOR DELETE
 TO authenticated
 USING (bucket_id IN ('driver-gear-photos', 'trunk-photos', 'damage-claims', 'vehicle-inspections'));
 
--- Public read access for driver-gear-photos (since it's a public bucket)
+-- Public read access for public buckets
 -- Note: This is handled by the bucket being public, but we can add explicit policy if needed
 CREATE POLICY "Public can read driver gear photos"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'driver-gear-photos');
 
+CREATE POLICY "Public can read vehicle inspections"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'vehicle-inspections');

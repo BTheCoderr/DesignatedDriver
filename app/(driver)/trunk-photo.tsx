@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Image, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
+import { uploadImage } from '@/lib/imageUpload';
+import { getOptimizedImageUrl } from '@/lib/imageOptimization';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function TrunkPhotoScreen() {
@@ -85,29 +87,13 @@ export default function TrunkPhotoScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !trip) throw new Error('Not authenticated');
 
-    const filename = `trunk-${trip.id}-${Date.now()}.jpg`;
-    const formData = new FormData();
-    
-    // @ts-ignore
-    formData.append('file', {
-      uri,
-      type: 'image/jpeg',
-      name: filename,
+    // Use unified upload function (Cloudinary preferred, Supabase fallback)
+    return await uploadImage(uri, 'trunk-photos', {
+      userId: user.id,
+      tripId: trip.id,
+      folder: 'designated-driver/trunk-photos',
+      publicId: `trunk-${trip.id}-${Date.now()}`,
     });
-
-    const { data, error } = await supabase.storage
-      .from('trunk-photos')
-      .upload(`${user.id}/${filename}`, formData as any, {
-        contentType: 'image/jpeg',
-      });
-
-    if (error) throw error;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('trunk-photos')
-      .getPublicUrl(data.path);
-
-    return publicUrl;
   };
 
   const handleSubmit = async () => {
@@ -193,7 +179,14 @@ export default function TrunkPhotoScreen() {
 
         {photo ? (
           <View style={styles.photoContainer}>
-            <Image source={{ uri: photo }} style={styles.photo} />
+            <Image 
+              source={{ 
+                uri: photo.startsWith('http') 
+                  ? getOptimizedImageUrl(photo, { width: 800, quality: 85 })
+                  : photo 
+              }} 
+              style={styles.photo} 
+            />
             <TouchableOpacity
               style={styles.retakeButton}
               onPress={() => setPhoto(null)}

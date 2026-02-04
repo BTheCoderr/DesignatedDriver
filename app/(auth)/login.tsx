@@ -180,7 +180,11 @@ export default function LoginScreen() {
 
           <TouchableOpacity
             style={styles.guestButton}
-            onPress={() => router.push('/(user)/request-rescue')}
+            onPress={() => {
+              // Navigate to user home as guest
+              // Use replace to prevent back navigation to login
+              router.replace('/(user)/');
+            }}
             activeOpacity={0.7}
           >
             <Text style={styles.guestButtonText}>Continue as Guest →</Text>

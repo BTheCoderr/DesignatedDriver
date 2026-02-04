@@ -1,10 +1,36 @@
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { useState, useEffect } from 'react';
 import TrustSignals from '@/components/TrustSignals';
 
 export default function UserHome() {
   const router = useRouter();
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setIsGuest(!user);
+  };
+
+  const handleRescue = () => {
+    if (isGuest) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to request a rescue.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => router.push('/(auth)/login') },
+        ]
+      );
+    } else {
+      router.push('/(user)/request-rescue-simple');
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -24,10 +50,17 @@ export default function UserHome() {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Trust Banner */}
+        <View style={styles.trustBanner}>
+          <Text style={styles.trustBannerText}>
+            Vetted drivers. Trunk photo proof. Insurance active during every trip.
+          </Text>
+        </View>
+
         <TouchableOpacity
           style={styles.rescueButton}
           activeOpacity={0.9}
-          onPress={() => router.push('/(user)/request-rescue-simple')}
+          onPress={handleRescue}
         >
           <View style={styles.rescueButtonInner}>
             <Text style={styles.rescueEmoji}>🚗</Text>
@@ -224,5 +257,19 @@ const styles = StyleSheet.create({
   emptyStateSubtext: {
     color: '#666',
     fontSize: 14,
+  },
+  trustBanner: {
+    backgroundColor: '#1a1a1a',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  trustBannerText: {
+    color: '#fff',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

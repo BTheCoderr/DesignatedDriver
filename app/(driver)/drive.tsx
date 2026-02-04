@@ -60,6 +60,22 @@ export default function DriveScreen() {
   const handleStartTrip = async () => {
     if (!trip) return;
 
+    // PROTECTION: Check if insurance session already exists and is bound
+    const { data: existingSession } = await supabase
+      .from('insurance_sessions')
+      .select('policy_status')
+      .eq('trip_id', trip.id)
+      .single();
+
+    if (existingSession && existingSession.policy_status === 'bound') {
+      Alert.alert(
+        'Trip Already Started',
+        'This trip has already been started. Insurance is already active.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     // ENFORCEMENT: Trunk photo required for scooter mode
     if (trip.dispatch_mode === 'solo_scoot') {
       // Check if trunk log exists with before_photo_url

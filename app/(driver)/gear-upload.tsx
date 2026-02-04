@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Image, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { uploadImage } from '@/lib/imageUpload';
+import { getOptimizedImageUrl } from '@/lib/imageOptimization';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function GearUploadScreen() {
@@ -65,29 +67,11 @@ export default function GearUploadScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const filename = `gear-${user.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-    const formData = new FormData();
-    
-    // @ts-ignore
-    formData.append('file', {
-      uri,
-      type: 'image/jpeg',
-      name: filename,
+    // Use unified upload function (Cloudinary preferred, Supabase fallback)
+    return await uploadImage(uri, 'driver-gear-photos', {
+      userId: user.id,
+      folder: 'designated-driver/driver-gear',
     });
-
-    const { data, error } = await supabase.storage
-      .from('driver-gear-photos')
-      .upload(`${user.id}/${filename}`, formData as any, {
-        contentType: 'image/jpeg',
-      });
-
-    if (error) throw error;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('driver-gear-photos')
-      .getPublicUrl(data.path);
-
-    return publicUrl;
   };
 
   const handleSubmit = async () => {
@@ -111,17 +95,40 @@ export default function GearUploadScreen() {
       const photoUrls = await Promise.all(photos.map(uri => uploadPhoto(uri)));
 
       // Create or update driver gear record
-      const { error } = await supabase
+      // First check if gear exists for this driver
+      const { data: existingGear } = await supabase
         .from('driver_gear')
-        .upsert({
-          driver_id: user.id,
-          gear_type: gearType,
-          device_model: deviceModel || null,
-          photo_urls: photoUrls,
-          verification_status: 'pending',
-        }, {
-          onConflict: 'driver_id',
-        });
+        .select('id')
+        .eq('driver_id', user.id)
+        .single();
+
+      let error;
+      if (existingGear) {
+        // Update existing gear
+        const { error: updateError } = await supabase
+          .from('driver_gear')
+          .update({
+            gear_type: gearType,
+            device_model: deviceModel || null,
+            photo_urls: photoUrls,
+            verification_status: 'pending',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('driver_id', user.id);
+        error = updateError;
+      } else {
+        // Insert new gear
+        const { error: insertError } = await supabase
+          .from('driver_gear')
+          .insert({
+            driver_id: user.id,
+            gear_type: gearType,
+            device_model: deviceModel || null,
+            photo_urls: photoUrls,
+            verification_status: 'pending',
+          });
+        error = insertError;
+      }
 
       if (error) throw error;
 
@@ -195,17 +202,23 @@ export default function GearUploadScreen() {
           <Text style={styles.sectionTitle}>Photos ({photos.length})</Text>
           {photos.length > 0 && (
             <View style={styles.photosGrid}>
-              {photos.map((uri, index) => (
-                <View key={index} style={styles.photoContainer}>
-                  <Image source={{ uri }} style={styles.photo} />
-                  <TouchableOpacity
-                    style={styles.removePhotoButton}
-                    onPress={() => setPhotos(photos.filter((_, i) => i !== index))}
-                  >
-                    <Text style={styles.removePhotoText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+              {photos.map((uri, index) => {
+                // For local URIs (file://), use as-is. For remote URLs, optimize
+                const imageUri = uri.startsWith('http') 
+                  ? getOptimizedImageUrl(uri, { width: 600, quality: 85 })
+                  : uri;
+                return (
+                  <View key={index} style={styles.photoContainer}>
+                    <Image source={{ uri: imageUri }} style={styles.photo} />
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => setPhotos(photos.filter((_, i) => i !== index))}
+                    >
+                      <Text style={styles.removePhotoText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
             </View>
           )}
           <View style={styles.photoButtons}>

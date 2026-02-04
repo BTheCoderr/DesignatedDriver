@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, ScrollView, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
+import { getOptimizedImageUrl } from '@/lib/imageOptimization';
 import MapView from '@/components/MapView';
 
 export default function TripTrackingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [trunkPhoto, setTrunkPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -52,6 +54,20 @@ export default function TripTrackingScreen() {
     }
 
     setTrip(data);
+    
+    // Load trunk photo if solo_scoot mode
+    if (data.dispatch_mode === 'solo_scoot') {
+      const { data: trunkLog } = await supabase
+        .from('trunk_logs')
+        .select('before_photo_url')
+        .eq('trip_id', id)
+        .single();
+      
+      if (trunkLog?.before_photo_url) {
+        setTrunkPhoto(trunkLog.before_photo_url);
+      }
+    }
+    
     setLoading(false);
 
     // Navigate to complete screen if trip is completed
@@ -63,9 +79,14 @@ export default function TripTrackingScreen() {
   const handleCancel = async () => {
     if (!trip || trip.status !== 'requested') return;
 
+    // Use granular cancellation status
     const { error } = await supabase
       .from('trips')
-      .update({ status: 'cancelled' })
+      .update({ 
+        status: 'cancelled_by_user_pre_start',
+        cancellation_reason: 'User cancelled before trip started',
+        cancelled_at: new Date().toISOString()
+      })
       .eq('id', trip.id);
 
     if (error) {
@@ -201,6 +222,20 @@ export default function TripTrackingScreen() {
                 </Text>
               )}
             </View>
+          </View>
+        )}
+
+        {/* Trunk Photo (Solo-Scoot only) */}
+        {trip.dispatch_mode === 'solo_scoot' && trunkPhoto && (
+          <View style={styles.trunkPhotoCard}>
+            <Text style={styles.trunkPhotoTitle}>Trunk Photo Verified</Text>
+            <Image 
+              source={{ uri: getOptimizedImageUrl(trunkPhoto, { width: 800, quality: 85 }) }} 
+              style={styles.trunkPhoto} 
+            />
+            <Text style={styles.trunkPhotoExplanation}>
+              This photo is logged before driving to protect your vehicle.
+            </Text>
           </View>
         )}
 
@@ -398,5 +433,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  trunkPhotoCard: {
+    backgroundColor: '#1a1a1a',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  trunkPhotoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  trunkPhoto: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  trunkPhotoExplanation: {
+    fontSize: 13,
+    color: '#888',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });

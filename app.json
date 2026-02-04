@@ -23,7 +23,18 @@
       "package": "com.designateddriver.app"
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "Designated Driver",
+      "shortName": "DD",
+      "description": "Request an on-demand designated driver to get you and your car home safely.",
+      "themeColor": "#007AFF",
+      "backgroundColor": "#0a0a0a",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "scope": "/",
+      "lang": "en",
+      "dir": "ltr"
     },
     "plugins": [
       [

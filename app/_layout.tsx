@@ -33,8 +33,25 @@ export default function RootLayout() {
     const inDriverGroup = segments[0] === '(driver)';
     const inAdminGroup = segments[0] === '(admin)';
 
-    if (!session && !inAuthGroup) {
-      // Not signed in, redirect to login
+    // Allow guest access to user home screen (index only)
+    // Check if we're on the user home route
+    const isUserHome = inUserGroup && (
+      segments.length === 1 || // ['(user)']
+      segments[1] === 'index' || // ['(user)', 'index']
+      !segments[1] // ['(user)', undefined]
+    );
+
+    // Don't redirect if we're already on login or user home
+    if (!session) {
+      if (inAuthGroup) {
+        // Already on auth screen, do nothing
+        return;
+      }
+      if (isUserHome) {
+        // Guest accessing home, allow it
+        return;
+      }
+      // Not signed in and not on allowed screen, redirect to login
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
       // Signed in, check role and redirect

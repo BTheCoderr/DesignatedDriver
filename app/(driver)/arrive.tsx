@@ -39,6 +39,12 @@ export default function ArriveScreen() {
   const handleMarkArrived = async () => {
     if (!trip) return;
 
+    // LOCATION TOLERANCE: Allow marking arrived within ~100 meters of pickup
+    // For MVP, we'll allow manual "Mark Arrived" without strict GPS check
+    // In production, you'd verify driver is within radius:
+    // const distance = calculateDistance(driverLat, driverLng, trip.pickup_latitude, trip.pickup_longitude);
+    // if (distance > 0.1) { /* ~100 meters */ Alert.alert('Too far from pickup'); return; }
+
     setMarkingArrived(true);
 
     const { error } = await supabase

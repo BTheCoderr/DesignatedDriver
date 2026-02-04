@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Image, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase, type DriverGear, type Profile } from '@/lib/supabase';
+import { getOptimizedImageUrl } from '@/lib/imageOptimization';
 
 export default function GearVerificationScreen() {
   const [pendingGear, setPendingGear] = useState<(DriverGear & { profile?: Profile })[]>([]);
@@ -141,7 +142,11 @@ export default function GearVerificationScreen() {
             {selectedGear.photo_urls && selectedGear.photo_urls.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
                 {selectedGear.photo_urls.map((url, index) => (
-                  <Image key={index} source={{ uri: url }} style={styles.photo} />
+                  <Image 
+                    key={index} 
+                    source={{ uri: getOptimizedImageUrl(url, { width: 600, quality: 85 }) }} 
+                    style={styles.photo} 
+                  />
                 ))}
               </ScrollView>
             ) : (
