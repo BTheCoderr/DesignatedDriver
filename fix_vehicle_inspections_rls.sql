@@ -2,9 +2,10 @@
 -- FIX VEHICLE INSPECTIONS RLS POLICIES
 -- ============================================
 -- This fixes the RLS policy errors preventing vehicle inspection submissions
+-- The issue: upsert() requires both INSERT and UPDATE policies
 -- ============================================
 
--- Drop existing policies if they exist (to avoid conflicts)
+-- Drop ALL existing policies to avoid conflicts
 DROP POLICY IF EXISTS "Drivers can insert inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can view their inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can view inspections for their trips" ON public.vehicle_inspections;
@@ -12,10 +13,13 @@ DROP POLICY IF EXISTS "Users can view inspections for their trips" ON public.veh
 DROP POLICY IF EXISTS "Drivers can update their inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can insert vehicle inspections" ON public.vehicle_inspections;
 DROP POLICY IF EXISTS "Drivers can view own inspections" ON public.vehicle_inspections;
+DROP POLICY IF EXISTS "Drivers can create inspections" ON public.vehicle_inspections;
 
--- Recreate policies with correct conditions
+-- ============================================
+-- RECREATE POLICIES (Properly)
+-- ============================================
 
--- 1. Drivers can INSERT inspections for trips they're assigned to
+-- 1. INSERT: Drivers can create inspections for trips they're assigned to
 CREATE POLICY "Drivers can insert inspections"
   ON public.vehicle_inspections FOR INSERT
   TO authenticated
@@ -28,13 +32,27 @@ CREATE POLICY "Drivers can insert inspections"
     )
   );
 
--- 2. Drivers can VIEW their own inspections
+-- 2. UPDATE: Drivers can update their own inspections (needed for upsert)
+CREATE POLICY "Drivers can update own inspections"
+  ON public.vehicle_inspections FOR UPDATE
+  TO authenticated
+  USING (driver_id = auth.uid())
+  WITH CHECK (
+    driver_id = auth.uid() AND
+    EXISTS (
+      SELECT 1 FROM public.trips
+      WHERE trips.id = vehicle_inspections.trip_id
+      AND (trips.primary_driver_id = auth.uid() OR trips.chase_driver_id = auth.uid())
+    )
+  );
+
+-- 3. SELECT: Drivers can view their own inspections
 CREATE POLICY "Drivers can view own inspections"
   ON public.vehicle_inspections FOR SELECT
   TO authenticated
   USING (driver_id = auth.uid());
 
--- 3. Users can VIEW inspections for their trips
+-- 4. SELECT: Users can view inspections for their trips
 CREATE POLICY "Users can view trip inspections"
   ON public.vehicle_inspections FOR SELECT
   TO authenticated
@@ -46,13 +64,6 @@ CREATE POLICY "Users can view trip inspections"
     )
   );
 
--- 4. Drivers can UPDATE their own inspections
-CREATE POLICY "Drivers can update own inspections"
-  ON public.vehicle_inspections FOR UPDATE
-  TO authenticated
-  USING (driver_id = auth.uid())
-  WITH CHECK (driver_id = auth.uid());
-
 -- ============================================
 -- VERIFICATION
 -- ============================================
@@ -61,30 +72,49 @@ CREATE POLICY "Drivers can update own inspections"
 SELECT 
   policyname as "Policy Name",
   cmd as "Command",
-  qual as "Using Expression",
-  with_check as "With Check Expression"
+  CASE 
+    WHEN qual IS NOT NULL THEN qual::text
+    ELSE 'N/A'
+  END as "Using Expression",
+  CASE 
+    WHEN with_check IS NOT NULL THEN with_check::text
+    ELSE 'N/A'
+  END as "With Check Expression"
 FROM pg_policies
 WHERE schemaname = 'public'
 AND tablename = 'vehicle_inspections'
-ORDER BY policyname;
+ORDER BY cmd, policyname;
 
 -- ============================================
--- TROUBLESHOOTING
+-- TROUBLESHOOTING GUIDE
 -- ============================================
 
--- If still getting errors, check:
--- 1. Is the user authenticated? (Check auth.uid() is not null)
--- 2. Is the driver_id matching auth.uid()?
--- 3. Is the trip_id valid and does the driver have access?
--- 4. Is the trip status correct for inspection?
+-- If you still get RLS errors, check these:
 
--- Debug query (run as the driver user):
+-- 1. Verify the driver is assigned to the trip:
 -- SELECT 
---   auth.uid() as current_user_id,
 --   t.id as trip_id,
 --   t.primary_driver_id,
 --   t.chase_driver_id,
---   t.status
+--   auth.uid() as current_user_id,
+--   CASE 
+--     WHEN t.primary_driver_id = auth.uid() THEN 'Primary Driver'
+--     WHEN t.chase_driver_id = auth.uid() THEN 'Chase Driver'
+--     ELSE 'NOT ASSIGNED'
+--   END as driver_role
 -- FROM trips t
--- WHERE t.id = 'YOUR_TRIP_ID'
--- AND (t.primary_driver_id = auth.uid() OR t.chase_driver_id = auth.uid());
+-- WHERE t.id = 'YOUR_TRIP_ID';
+
+-- 2. Verify the user is authenticated:
+-- SELECT auth.uid() as current_user_id;
+
+-- 3. Check if RLS is enabled:
+-- SELECT tablename, rowsecurity 
+-- FROM pg_tables 
+-- WHERE schemaname = 'public' 
+-- AND tablename = 'vehicle_inspections';
+
+-- 4. List all policies:
+-- SELECT * FROM pg_policies 
+-- WHERE schemaname = 'public' 
+-- AND tablename = 'vehicle_inspections';
