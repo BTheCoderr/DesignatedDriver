@@ -128,13 +128,33 @@ export default function RequestRescueScreen() {
       // Detect city density from pickup location
       const cityDensity = detectCityDensity(pickupLocation.lat, pickupLocation.lng);
 
+      // Geocode destination address to get real coordinates
+      let destinationCoords = { lat: selectedDestination.lat, lng: selectedDestination.lng };
+      
+      try {
+        // Try to geocode the destination address for accurate distance
+        const geocodeResult = await Location.geocodeAsync(selectedDestination.description);
+        if (geocodeResult && geocodeResult.length > 0) {
+          destinationCoords = {
+            lat: geocodeResult[0].latitude,
+            lng: geocodeResult[0].longitude,
+          };
+          console.log(`📍 Geocoded "${selectedDestination.description}" to:`, destinationCoords);
+        } else {
+          console.warn('⚠️ Geocoding failed, using mock coordinates');
+        }
+      } catch (geocodeError) {
+        console.warn('⚠️ Geocoding error, using provided coordinates:', geocodeError);
+        // Fallback to provided coordinates if geocoding fails
+      }
+
       const trip = await createBooking({
         userId: user.id,
         vehicleId: selectedVehicleId,
         pickup: pickupLocation,
         destination: {
-          lat: selectedDestination.lat,
-          lng: selectedDestination.lng,
+          lat: destinationCoords.lat,
+          lng: destinationCoords.lng,
           address: selectedDestination.description
         },
         cityDensity: cityDensity

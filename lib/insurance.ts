@@ -163,14 +163,64 @@ export async function bindInsurancePolicy(tripId: string): Promise<InsuranceSess
       throw new Error(`Trip not found: ${tripError?.message || 'Unknown error'}`);
     }
     
-    // Get vehicle details
+    // Get vehicle details (with better error handling for RLS)
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
       .select('make, model, year, license_plate')
       .eq('id', trip.vehicle_id)
       .single();
     
-    if (vehicleError || !vehicle || !vehicle.make || !vehicle.model || !vehicle.year || !vehicle.license_plate) {
+    if (vehicleError) {
+      console.error('Vehicle query error:', vehicleError);
+      // If RLS error, try to get vehicle from trip relationship
+      if (vehicleError.code === '42501' || vehicleError.message?.includes('row-level security')) {
+        // Try alternative: get vehicle via trip relationship
+        const { data: tripWithVehicle } = await supabase
+          .from('trips')
+          .select(`
+            vehicle_id,
+            vehicles:vehicle_id (
+              make, model, year, license_plate
+            )
+          `)
+          .eq('id', tripId)
+          .single();
+        
+        if (tripWithVehicle && (tripWithVehicle as any).vehicles) {
+          const vehicleData = (tripWithVehicle as any).vehicles;
+          if (vehicleData.make && vehicleData.model && vehicleData.year && vehicleData.license_plate) {
+            // Use vehicle from trip relationship
+            const vehicleInfo: VehicleInfo = {
+              make: vehicleData.make,
+              model: vehicleData.model,
+              year: vehicleData.year,
+              license_plate: vehicleData.license_plate,
+            };
+            
+            const newSession = await createPolicySession(
+              tripId,
+              vehicleInfo,
+              trip.primary_driver_id || ''
+            );
+            
+            if (!newSession) {
+              throw new Error('Failed to create insurance session');
+            }
+            
+            session = newSession as any;
+            // Skip to binding
+            const result = await bindPolicy(session.id, tripId);
+            if (!result) {
+              throw new Error('Failed to bind insurance policy');
+            }
+            return result as InsuranceSession;
+          }
+        }
+      }
+      throw new Error(`Vehicle query failed: ${vehicleError.message}. Cannot create insurance session.`);
+    }
+    
+    if (!vehicle || !vehicle.make || !vehicle.model || !vehicle.year || !vehicle.license_plate) {
       throw new Error('Vehicle details incomplete. Cannot create insurance session.');
     }
     
