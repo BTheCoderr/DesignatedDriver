@@ -166,16 +166,8 @@ export default function RequestRescueScreen() {
 
       const result = await selectDispatchMode(tripData, availableDrivers);
       
-      // Ensure price exists (it should be calculated in selectDispatchMode)
-      const price = result.price || result.priceEstimate || (result.mode ? calculatePrice(
-        result.mode,
-        distance,
-        tripData.timeOfDay,
-        tripData.weather,
-        tripData.isWeekend
-      ) : null);
-
-      setDispatchResult({ ...result, price: price || undefined });
+      // Price is always included in DispatchResult now
+      setDispatchResult(result);
       setStep(4);
     } catch (error) {
       console.error('Dispatch error:', error);
