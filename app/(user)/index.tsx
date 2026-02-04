@@ -28,7 +28,7 @@ export default function UserHome() {
         ]
       );
     } else {
-      router.push('/(user)/request-rescue-simple');
+      router.push('/(user)/request-rescue');
     }
   };
 
