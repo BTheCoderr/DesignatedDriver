@@ -55,18 +55,34 @@ END $$;
 DO $$
 DECLARE
   scooter_driver_id UUID;
+  existing_gear_id UUID;
 BEGIN
   SELECT id INTO scooter_driver_id FROM auth.users WHERE email = 'demo_driver_scoot@test.com';
   
   IF scooter_driver_id IS NOT NULL THEN
-    INSERT INTO public.driver_gear (driver_id, gear_type, verification_status, photo_urls)
-    VALUES (scooter_driver_id, 'folding_scooter', 'verified', ARRAY[]::text[])
-    ON CONFLICT (driver_id) DO UPDATE 
-    SET gear_type = EXCLUDED.gear_type, 
-        verification_status = EXCLUDED.verification_status,
-        photo_urls = EXCLUDED.photo_urls;
+    -- Check if gear already exists for this driver
+    SELECT id INTO existing_gear_id 
+    FROM public.driver_gear 
+    WHERE driver_id = scooter_driver_id
+    LIMIT 1;
     
-    RAISE NOTICE '✅ Added verified scooter gear for Scooter Steve';
+    IF existing_gear_id IS NOT NULL THEN
+      -- Update existing gear
+      UPDATE public.driver_gear
+      SET gear_type = 'folding_scooter',
+          verification_status = 'verified',
+          photo_urls = ARRAY[]::text[],
+          updated_at = NOW()
+      WHERE driver_id = scooter_driver_id;
+      
+      RAISE NOTICE '✅ Updated scooter gear for Scooter Steve';
+    ELSE
+      -- Insert new gear
+      INSERT INTO public.driver_gear (driver_id, gear_type, verification_status, photo_urls)
+      VALUES (scooter_driver_id, 'folding_scooter', 'verified', ARRAY[]::text[]);
+      
+      RAISE NOTICE '✅ Added verified scooter gear for Scooter Steve';
+    END IF;
   END IF;
 END $$;
 
