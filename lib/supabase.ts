@@ -13,8 +13,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Please check your .env file in the project root');
 } else {
   console.log('✓ Supabase configured');
-  console.log('URL:', supabaseUrl);
-  console.log('Key:', `${supabaseAnonKey.substring(0, 20)}...`);
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -55,7 +53,16 @@ export type Trip = {
   user_id: string;
   vehicle_id: string;
   dispatch_mode: 'chase_car' | 'solo_scoot' | 'shadow';
-  status: 'requested' | 'dispatched' | 'driver_arriving' | 'trunk_verified' | 'in_progress' | 'completed' | 'cancelled';
+  status:
+    | 'requested'
+    | 'dispatched'
+    | 'driver_arriving'
+    | 'trunk_verified'
+    | 'in_progress'
+    | 'completed'
+    | 'cancelled'
+    | 'cancelled_by_user_pre_start'
+    | 'cancelled_by_driver';
   pickup_latitude: number | null;
   pickup_longitude: number | null;
   pickup_address: string | null;
@@ -77,6 +84,7 @@ export type Trip = {
   started_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
+  cancellation_reason: string | null;
   user_notes: string | null;
   requires_trunk_fit: boolean;
   created_at: string;
