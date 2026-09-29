@@ -137,7 +137,10 @@ export default function TripTrackingScreen() {
       case 'completed':
         return 'Trip completed';
       case 'cancelled':
+      case 'cancelled_by_user_pre_start':
         return 'Trip cancelled';
+      case 'cancelled_by_driver':
+        return 'Driver cancelled — dispatch needed';
       default:
         return 'Unknown status';
     }
@@ -158,6 +161,8 @@ export default function TripTrackingScreen() {
       case 'completed':
         return '#4CAF50'; // Green - Completed
       case 'cancelled':
+      case 'cancelled_by_user_pre_start':
+      case 'cancelled_by_driver':
         return '#ff4444'; // Red - Cancelled
       default:
         return '#888';
