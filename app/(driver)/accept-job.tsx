@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
 
@@ -39,43 +39,45 @@ export default function AcceptJobScreen() {
     if (!trip) return;
 
     setAccepting(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setAccepting(false);
-      return;
-    }
 
-    // Update trip with driver assignment
-    // Status 'dispatched' = "Accepted" in simplified flow
-    const updateData: any = {
-      status: 'dispatched', // This is "Accepted" - driver en route
-      dispatched_at: new Date().toISOString(),
-    };
+    try {
+      const { data, error } = await supabase.rpc('claim_trip', {
+        p_trip_id: trip.id,
+      });
 
-    if (trip.dispatch_mode === 'solo_scoot') {
-      updateData.primary_driver_id = user.id;
-    } else {
-      // For Chase Car, assign as primary or chase based on availability
-      if (!trip.primary_driver_id) {
-        updateData.primary_driver_id = user.id;
-      } else if (!trip.chase_driver_id) {
-        updateData.chase_driver_id = user.id;
+      if (error) throw error;
+
+      const result = data as {
+        trip_id: string;
+        slot: 'primary' | 'primary_waiting' | 'chase';
+        status: Trip['status'];
+      };
+
+      if (result.slot === 'primary_waiting') {
+        Alert.alert(
+          'First Driver Assigned',
+          'This Chase Car trip needs a second driver before the trip can begin.',
+          [{ text: 'OK', onPress: () => router.replace('/(driver)') }]
+        );
+        return;
       }
-    }
 
-    const { error } = await supabase
-      .from('trips')
-      .update(updateData)
-      .eq('id', trip.id);
+      if (result.slot === 'chase') {
+        Alert.alert(
+          'Chase Support Assigned',
+          'You are the chase/support driver for this trip. The primary driver controls the customer trip flow.',
+          [{ text: 'OK', onPress: () => router.replace('/(driver)') }]
+        );
+        return;
+      }
 
-    setAccepting(false);
-
-    if (error) {
+      router.replace(`/(driver)/arrive?id=${trip.id}`);
+    } catch (error: any) {
       console.error('Error accepting job:', error);
-      return;
+      Alert.alert('Unable to Accept Job', error.message || 'This trip may already be claimed.');
+    } finally {
+      setAccepting(false);
     }
-
-    router.replace(`/(driver)/arrive?id=${trip.id}`);
   };
 
   const handleDecline = () => {
@@ -109,7 +111,7 @@ export default function AcceptJobScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.headerBackButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Job Details</Text>
         <View style={{ width: 60 }} />
@@ -210,7 +212,7 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 16,
   },
-  backButtonText: {
+  headerBackButtonText: {
     color: '#007AFF',
     fontSize: 16,
   },
