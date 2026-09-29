@@ -6,6 +6,7 @@ import { supabase, type Trip, type DriverGear } from '@/lib/supabase';
 export default function DriverHome() {
   const [availableTrips, setAvailableTrips] = useState<Trip[]>([]);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+  const [activeRole, setActiveRole] = useState<'primary' | 'chase' | null>(null);
   const [gearStatus, setGearStatus] = useState<DriverGear | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -45,30 +46,43 @@ export default function DriverHome() {
 
     setGearStatus(gear);
 
-    // Load active trip
+    // Load the driver's current assignment. A primary Chase Car driver can be
+    // assigned while the request is still waiting for the second driver.
     const { data: active } = await supabase
       .from('trips')
       .select('*')
       .or(`primary_driver_id.eq.${user.id},chase_driver_id.eq.${user.id}`)
-      .in('status', ['dispatched', 'driver_arriving', 'trunk_verified', 'in_progress'])
-      .single();
+      .in('status', ['requested', 'dispatched', 'driver_arriving', 'trunk_verified', 'in_progress'])
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (active) {
+      const role = active.primary_driver_id === user.id ? 'primary' : 'chase';
       setActiveTrip(active);
-      // Navigate to appropriate screen based on status
-      if (active.status === 'dispatched') {
-        router.replace(`/(driver)/arrive?id=${active.id}`);
-      } else if (active.status === 'driver_arriving' || active.status === 'trunk_verified') {
-        if (active.dispatch_mode === 'solo_scoot' && active.status === 'driver_arriving') {
-          router.replace(`/(driver)/trunk-photo?id=${active.id}`);
-        } else {
+      setActiveRole(role);
+
+      // The chase/support driver does not control customer-trip status.
+      if (role === 'primary') {
+        if (active.status === 'dispatched') {
+          router.replace(`/(driver)/arrive?id=${active.id}`);
+        } else if (active.status === 'driver_arriving' || active.status === 'trunk_verified') {
+          if (active.dispatch_mode === 'solo_scoot' && active.status === 'driver_arriving') {
+            router.replace(`/(driver)/trunk-photo?id=${active.id}`);
+          } else {
+            router.replace(`/(driver)/drive?id=${active.id}`);
+          }
+        } else if (active.status === 'in_progress') {
           router.replace(`/(driver)/drive?id=${active.id}`);
         }
-      } else if (active.status === 'in_progress') {
-        router.replace(`/(driver)/drive?id=${active.id}`);
       }
+
+      setLoading(false);
       return;
     }
+
+    setActiveTrip(null);
+    setActiveRole(null);
 
     // Load available trips (requested status, matching gear)
     const { data: trips } = await supabase
@@ -153,14 +167,21 @@ export default function DriverHome() {
           <TouchableOpacity
             style={styles.activeTripCard}
             onPress={() => {
+              if (activeRole !== 'primary') return;
               if (activeTrip.status === 'dispatched') {
                 router.push(`/(driver)/arrive?id=${activeTrip.id}`);
-              } else if (activeTrip.status === 'in_progress') {
+              } else if (
+                activeTrip.status === 'driver_arriving' ||
+                activeTrip.status === 'trunk_verified' ||
+                activeTrip.status === 'in_progress'
+              ) {
                 router.push(`/(driver)/drive?id=${activeTrip.id}`);
               }
             }}
           >
-            <Text style={styles.activeTripTitle}>Active Trip</Text>
+            <Text style={styles.activeTripTitle}>
+              {activeRole === 'chase' ? 'Chase Support Assignment' : 'Active Trip'}
+            </Text>
             <Text style={styles.activeTripText}>
               {activeTrip.pickup_address} → {activeTrip.destination_address}
             </Text>
@@ -172,11 +193,13 @@ export default function DriverHome() {
                 activeTrip.status === 'in_progress' && styles.statusDotDriving,
               ]} />
               <Text style={styles.activeTripStatus}>
-                {activeTrip.status === 'dispatched' ? 'En Route' :
+                {activeRole === 'chase' ? 'Support assigned — primary driver controls trip' :
+                 activeTrip.status === 'requested' ? 'Waiting for chase partner' :
+                 activeTrip.status === 'dispatched' ? 'En Route' :
                  activeTrip.status === 'driver_arriving' ? 'Arriving' :
                  activeTrip.status === 'trunk_verified' ? 'Verified' :
                  activeTrip.status === 'in_progress' ? 'Driving' :
-                 activeTrip.status.replace('_', ' ').toUpperCase()}
+                 activeTrip.status.replace(/_/g, ' ').toUpperCase()}
               </Text>
             </View>
           </TouchableOpacity>
