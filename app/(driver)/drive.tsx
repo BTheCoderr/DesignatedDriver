@@ -120,22 +120,9 @@ export default function DriveScreen() {
     setStarting(true);
 
     try {
-      // Bind insurance policy (insurance switch event - per video script)
-      const insuranceResult = await bindInsurancePolicy(trip.id);
-
-      // Update insurance session
-      const { error: insuranceError } = await supabase
-        .from('insurance_sessions')
-        .update({
-          policy_status: 'bound',
-          policy_bound_at: new Date().toISOString(),
-          policy_id: insuranceResult.policyId || null,
-        })
-        .eq('trip_id', trip.id);
-
-      if (insuranceError) {
-        console.error('Insurance update error:', insuranceError);
-      }
+      // Bind the prototype insurance session. The helper performs the database
+      // update; do not write a second time from the screen.
+      await bindInsurancePolicy(trip.id);
 
       // Update trip status
       const { error: tripError } = await supabase
@@ -203,21 +190,9 @@ export default function DriveScreen() {
             setEnding(true);
 
             try {
-              // End insurance policy
+              // End the prototype insurance session. The helper performs the
+              // database update exactly once.
               await endInsurancePolicy(trip.id);
-
-              // Update insurance session
-              const { error: insuranceError } = await supabase
-                .from('insurance_sessions')
-                .update({
-                  policy_status: 'ended',
-                  policy_ended_at: new Date().toISOString(),
-                })
-                .eq('trip_id', trip.id);
-
-              if (insuranceError) {
-                console.error('Insurance update error:', insuranceError);
-              }
 
               // Update trip status
               const { error: tripError } = await supabase
