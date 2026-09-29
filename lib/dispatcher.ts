@@ -75,6 +75,27 @@ const SURGE_MULTIPLIERS = {
 };
 
 /**
+ * Selects the preferred dispatch mode for a new customer request.
+ *
+ * This intentionally does not inspect the driver directory. The customer can
+ * create a requested trip under RLS, and authenticated drivers claim the trip
+ * through the claim_trip RPC.
+ */
+export function selectPreferredMode(tripData: TripData): 'chase_car' | 'solo_scoot' {
+  if (DEMO_FORCE_MODE) return DEMO_FORCE_MODE;
+
+  const { distance, timeOfDay, weather, cityDensity } = tripData;
+  let soloScootScore = 0;
+
+  if (cityDensity === 'high' || cityDensity === 'medium') soloScootScore += 3;
+  if (distance < 5) soloScootScore += 2;
+  if (weather === 'clear' || weather === 'sunny') soloScootScore += 2;
+  if (timeOfDay >= 6 && timeOfDay <= 22) soloScootScore += 1;
+
+  return soloScootScore >= 5 ? 'solo_scoot' : 'chase_car';
+}
+
+/**
  * Main dispatcher function - selects mode and drivers based on Rule 5
  */
 export async function selectDispatchMode(
