@@ -9,80 +9,32 @@ export default function RoleSelectScreen() {
 
   const selectRole = async (role: 'user' | 'driver') => {
     setLoading(true);
-    
+
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setLoading(false);
-        console.error('Auth error:', userError);
-        Alert.alert('Error', 'Not authenticated. Please try logging in again.');
+        Alert.alert('Error', 'Not authenticated. Please log in again.');
         router.replace('/(auth)/login');
         return;
       }
 
-      console.log('Setting role for user:', user.id, 'to:', role);
-
-      // First, check if profile exists
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .eq('id', user.id)
-        .single();
-
-      let error;
-
-      if (existingProfile) {
-        // Profile exists, update it
-        console.log('Profile exists, updating role...');
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ role })
-          .eq('id', user.id);
-        error = updateError;
-      } else {
-        // Profile doesn't exist, create it
-        console.log('Profile does not exist, creating new profile...');
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        const userMetadata = currentUser?.user_metadata || {};
-        
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email || '',
-            phone: userMetadata.phone || '',
-            full_name: userMetadata.full_name || userMetadata.full_name || 'User',
-            role,
-          });
-        error = insertError;
-      }
-
-      setLoading(false);
+      const { error } = await supabase.rpc('choose_account_role', {
+        p_role: role,
+      });
 
       if (error) {
-        console.error('Profile error:', error);
-        Alert.alert(
-          'Error', 
-          `Failed to set role: ${error.message}. Please try again or contact support.`
-        );
+        console.error('Role selection error:', error);
+        Alert.alert('Error', error.message || 'Failed to set up your account.');
         return;
       }
 
-      console.log('Role set successfully, redirecting...');
-
-      // Small delay to ensure state is updated
-      setTimeout(() => {
-        if (role === 'driver') {
-          router.replace('/(driver)');
-        } else {
-          router.replace('/(user)');
-        }
-      }, 100);
+      router.replace(role === 'driver' ? '/(driver)' : '/(user)');
     } catch (err) {
-      setLoading(false);
-      console.error('Unexpected error:', err);
+      console.error('Unexpected role selection error:', err);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
