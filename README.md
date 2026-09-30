@@ -1,85 +1,111 @@
-# DesignatedDriver MVP
+# DesignatedDriver
 
 <!-- repo-intro:start -->
-**Project snapshot:** DesignatedDriver is a mobile prototype for getting a customer's own car home safely, modeling hybrid dispatch, trip requests, driver workflows, pricing logic, and Supabase-backed data/security.
+**Project snapshot:** DesignatedDriver is an Expo/React Native service prototype for getting a customer's own vehicle home safely, with separate customer, driver, and admin workflows backed by Supabase.
 
-**What it demonstrates:** Expo/React Native · Supabase · dispatch logic · RLS · marketplace operations.
+**What it demonstrates:** Expo/React Native · TypeScript · Supabase Auth/Postgres/Storage/Realtime/RLS · dispatch logic · role-based mobile flows · photo verification · trip lifecycle design.
 <!-- repo-intro:end -->
 
-A "drive my car home" app prototype with hybrid dispatch system (Chase Car + Solo-Scoot).
+DesignatedDriver models a **drive-my-car-home** service instead of a normal ride-hailing flow. The customer keeps their own vehicle; the platform coordinates the request, dispatch approach, driver workflow, verification, trip tracking, completion, and post-trip support.
 
-## Quick Start
+## Product at a glance
 
-1. **Set up Supabase**
-   - Create project at https://supabase.com
-   - Run `schema.sql` in SQL Editor
-   - Run `rls_policies.sql` in SQL Editor
-   - Create storage buckets (see BUILD_STEPS.md)
+| Role | Current flows |
+| --- | --- |
+| Customer | Rescue request, vehicle management, trip tracking, trip completion, damage claim |
+| Driver | Job acceptance, arrival, trunk/device proof, vehicle inspection, active drive, trip end |
+| Admin | Operations dashboard + gear verification |
+| Platform | Hybrid dispatch rules, pricing logic, Supabase-backed data, role-aware navigation |
 
-2. **Install & Run**
-   ```bash
-   npm install
-   # Create .env with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
-   npm start
-   ```
+## Core operating model
 
-3. **Test**
-   - Follow TEST_PLAN.md checklist
-   - Create test users via Supabase Auth
-   - Seed data using seed_data.sql
+The prototype supports two dispatch concepts:
 
-## Project Structure
+- **Chase Car** — two-driver workflow where one driver operates the customer's vehicle and the second supports the team.
+- **Solo-Scoot** — one-driver workflow using a transport device that must fit in the customer's vehicle.
 
-```
-├── schema.sql              # Database schema
-├── rls_policies.sql        # Row-level security policies
-├── dispatcher_pricing_pseudocode.md  # Dispatcher & pricing logic
-├── ARCHITECTURE.md         # System architecture
-├── SCREENS.md              # Screen map & navigation
-├── BUILD_STEPS.md          # Step-by-step build guide
-├── TEST_PLAN.md            # QA checklist
-├── seed_data.sql           # Test data
-├── lib/
-│   ├── supabase.ts         # Supabase client & types
-│   ├── dispatcher.ts       # Dispatch logic
-│   └── insurance.ts        # Insurance stub functions
-└── app/                    # Expo Router screens (to be created)
+That operating model drives the product's unusual verification steps: trunk photos, gear validation, vehicle inspection, and role-specific trip state.
+
+## Current application surfaces
+
+```text
+app/
+  (auth)/       account and session entry
+  (user)/       rescue request, vehicles, tracking, completion, damage claims
+  (driver)/     jobs, arrival, trunk proof, inspection, drive, end-trip
+  (admin)/      operations + gear verification
 ```
 
-## Core Features
+The repository contains real Expo Router screens today; it is no longer just a screen map or pseudocode scaffold.
 
-- **One-tap Rescue Button** - Quick trip request
-- **Hybrid Dispatch** - Chase Car (2 drivers) or Solo-Scoot (1 driver w/ device)
-- **Trunk Photo Verification** - Proof device fits before trip
-- **Insurance Switch** - Policy bound at Start Trip (stub)
-- **Real-time Tracking** - Live driver location updates
-- **Damage Claims** - Full workflow with photos
-- **Pricing Engine** - Surge multipliers, tiered pricing
+## Data + security
 
-## Tech Stack
+Supabase is used for:
 
-- React Native (Expo)
-- Supabase (PostgreSQL + Auth + Storage + Realtime)
-- Mapbox/Google Maps
+- authentication
+- PostgreSQL application data
+- Row Level Security
+- storage policies for uploaded evidence
+- Realtime-backed operational state where needed
+
+The repository also tracks schema/RLS fixes for vehicles and vehicle inspections instead of relying on dashboard-only changes.
+
+## Media + verification
+
+The product includes photo-oriented operational workflows such as:
+
+- driver gear upload
+- trunk/device-fit proof
+- vehicle inspections
+- damage-claim evidence
+
+Cloudinary integration/optimization work is documented in-repo alongside Supabase storage/security decisions.
+
+## Dispatch + pricing
+
+The dispatch layer is rules-based, not machine learning. The repository includes explicit dispatcher/pricing logic and documentation so the product behavior can be reasoned about and tested instead of hiding key decisions in UI code.
+
+## Tech stack
+
+- Expo / React Native
+- Expo Router
 - TypeScript
+- Supabase Auth + PostgreSQL + Storage + Realtime
+- Row Level Security
+- Cloudinary-supported media workflows
+- Netlify web build support
+
+## Local setup
+
+```bash
+npm install
+npm start
+```
+
+Create local environment variables for the public Supabase URL/client key and follow the repository setup documents before connecting a new backend.
 
 ## Documentation
 
-- **ARCHITECTURE.md** - System overview
-- **SCREENS.md** - Screen structure & flows
-- **BUILD_STEPS.md** - Detailed setup instructions
-- **TEST_PLAN.md** - QA checklist
-- **dispatcher_pricing_pseudocode.md** - Core logic
+Key references include:
 
-## MVP Constraints
+- `ARCHITECTURE.md`
+- `BUILD_STEPS.md`
+- `TEST_PLAN.md`
+- `END_TO_END_TEST_GUIDE.md`
+- `dispatcher_pricing_pseudocode.md`
+- `CLOUDINARY_DECISION.md`
+- `DEPLOY_WEB.md`
 
-- Insurance integration is stub (logs to console)
-- Dispatch is rules-based (not ML)
-- Manual gear verification (admin panel)
-- No payment processing (placeholder)
-- No push notifications
+## MVP constraints
 
-## License
+The current prototype still has deliberate limits:
 
-Proprietary - MVP Prototype
+- insurance binding is a stub rather than a production insurance integration
+- dispatch is rules-based
+- some operational verification remains manual/admin-assisted
+- payments are not a production payment flow
+- push-notification infrastructure is not the focus of the current build
 
+---
+
+Built as a marketplace/operations prototype where the hard part is the **service workflow**, not just drawing a map with a driver pin.
