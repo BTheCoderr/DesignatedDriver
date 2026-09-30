@@ -1,5 +1,11 @@
 # DesignatedDriver MVP
 
+<!-- repo-intro:start -->
+**Project snapshot:** DesignatedDriver is a mobile prototype for getting a customer's own car home safely, modeling hybrid dispatch, trip requests, driver workflows, pricing logic, and Supabase-backed data/security.
+
+**What it demonstrates:** Expo/React Native · Supabase · dispatch logic · RLS · marketplace operations.
+<!-- repo-intro:end -->
+
 A "drive my car home" app prototype with hybrid dispatch system (Chase Car + Solo-Scoot).
 
 ## Quick Start
