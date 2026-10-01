@@ -207,9 +207,9 @@ export async function bindInsurancePolicy(tripId: string): Promise<InsuranceSess
               throw new Error('Failed to create insurance session');
             }
             
-            session = newSession as any;
-            // Skip to binding
-            const result = await bindPolicy(session.id, tripId);
+            session = newSession as InsuranceSession;
+            // Skip to binding using the known non-null session we just created.
+            const result = await bindPolicy(newSession.id, tripId);
             if (!result) {
               throw new Error('Failed to bind insurance policy');
             }
@@ -242,9 +242,13 @@ export async function bindInsurancePolicy(tripId: string): Promise<InsuranceSess
       throw new Error('Failed to create insurance session');
     }
     
-    session = newSession as any;
+    session = newSession as InsuranceSession;
   }
   
+  if (!session) {
+    throw new Error('Failed to resolve insurance session');
+  }
+
   const result = await bindPolicy(session.id, tripId);
   if (!result) {
     throw new Error('Failed to bind insurance policy');

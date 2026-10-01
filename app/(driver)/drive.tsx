@@ -120,22 +120,9 @@ export default function DriveScreen() {
     setStarting(true);
 
     try {
-      // Bind insurance policy (insurance switch event - per video script)
-      const insuranceResult = await bindInsurancePolicy(trip.id);
-
-      // Update insurance session
-      const { error: insuranceError } = await supabase
-        .from('insurance_sessions')
-        .update({
-          policy_status: 'bound',
-          policy_bound_at: new Date().toISOString(),
-          policy_id: insuranceResult.policyId || null,
-        })
-        .eq('trip_id', trip.id);
-
-      if (insuranceError) {
-        console.error('Insurance update error:', insuranceError);
-      }
+      // Bind the insurance session. bindInsurancePolicy owns the policy status,
+      // timestamp, and stub policy number update.
+      await bindInsurancePolicy(trip.id);
 
       // Update trip status
       const { error: tripError } = await supabase
@@ -259,7 +246,7 @@ export default function DriveScreen() {
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Trip not found</Text>
           <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(driver)/')}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Text style={styles.errorBackButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -411,7 +398,7 @@ const styles = StyleSheet.create({
     minWidth: 120,
     alignItems: 'center',
   },
-  backButtonText: {
+  errorBackButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

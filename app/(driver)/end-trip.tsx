@@ -3,9 +3,19 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicat
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
 
+type TripReview = {
+  rating: number | null;
+  review_text?: string | null;
+  tip_amount?: number | null;
+};
+
+type TripWithReviews = Trip & {
+  trip_reviews?: TripReview[];
+};
+
 export default function EndTripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [trip, setTrip] = useState<Trip | null>(null);
+  const [trip, setTrip] = useState<TripWithReviews | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -49,7 +59,7 @@ export default function EndTripScreen() {
       return;
     }
 
-    setTrip(data);
+    setTrip(data as TripWithReviews);
     setLoading(false);
   };
 

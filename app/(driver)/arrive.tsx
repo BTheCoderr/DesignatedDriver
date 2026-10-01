@@ -91,7 +91,7 @@ export default function ArriveScreen() {
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Trip not found</Text>
           <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(driver)/')}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Text style={styles.errorBackButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     minWidth: 120,
     alignItems: 'center',
   },
-  backButtonText: {
+  errorBackButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

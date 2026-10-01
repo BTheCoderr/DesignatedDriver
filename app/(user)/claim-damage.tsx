@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Ima
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, type Trip } from '@/lib/supabase';
 import { getOptimizedImageUrl } from '@/lib/imageOptimization';
+import { uploadImage } from '@/lib/imageUpload';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function ClaimDamageScreen() {
@@ -196,7 +197,7 @@ export default function ClaimDamageScreen() {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.headerCard}>
-          <Text style={styles.headerTitle}>Report Damage</Text>
+          <Text style={styles.cardTitle}>Report Damage</Text>
           <Text style={styles.headerSubtitle}>
             Built-in damage claim flow with photos and timestamps
           </Text>
@@ -392,7 +393,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a2a',
   },
-  headerTitle: {
+  cardTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#fff',
