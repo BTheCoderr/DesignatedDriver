@@ -1,5 +1,7 @@
 # DesignatedDriver
 
+[![CI](https://github.com/BTheCoderr/DesignatedDriver/actions/workflows/ci.yml/badge.svg)](https://github.com/BTheCoderr/DesignatedDriver/actions/workflows/ci.yml)
+
 <!-- repo-intro:start -->
 **Project snapshot:** DesignatedDriver is an Expo/React Native service prototype for getting a customer's own vehicle home safely, with separate customer, driver, and admin workflows backed by Supabase.
 
