@@ -29,7 +29,7 @@ export default function ServicesScreen() {
     {SERVICES.map(service => <TouchableOpacity key={service.id} style={styles.card} onPress={() => choose(service)} accessibilityRole="button" accessibilityLabel={service.title + (service.available ? '' : ', coming soon')}>
       <Text style={styles.icon}>{service.icon}</Text><View style={styles.info}><Text style={styles.title}>{service.title}</Text><Text style={styles.subtitle}>{service.subtitle}</Text>{!service.available && <Text style={styles.soon}>COMING SOON</Text>}</View><Text style={styles.arrow}>›</Text>
     </TouchableOpacity>)}
-    <Text style={styles.note}>Only Drive My Car currently connects to the existing booking flow. All services are subject to driver, insurance and regulatory verification before launch.</Text>
+    <Text style={styles.note}>Drive My Car uses the legacy booking flow. Other services accept inquiries for manual review only, after the new database migration is applied. No rides are confirmed and no payments are collected.</Text>
   </ScrollView></SafeAreaView>;
 }
 const styles = StyleSheet.create({
