@@ -21,14 +21,14 @@ export default function UserHome() {
     if (isGuest) {
       Alert.alert(
         'Sign In Required',
-        'Please sign in to request a rescue.',
+        'Please sign in to request a driver.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Sign In', onPress: () => router.push('/(auth)/login') },
         ]
       );
     } else {
-      router.push('/(user)/request-rescue');
+      router.push('/(user)/services');
     }
   };
 
@@ -53,7 +53,7 @@ export default function UserHome() {
         {/* Trust Banner */}
         <View style={styles.trustBanner}>
           <Text style={styles.trustBannerText}>
-            Vetted drivers. Trunk photo proof. Insurance active during every trip.
+            Driver verification and service eligibility are checked before launch. Insurance coverage is not yet active.
           </Text>
         </View>
 
@@ -65,8 +65,8 @@ export default function UserHome() {
           <View style={styles.rescueButtonInner}>
             <Text style={styles.rescueEmoji}>🚗</Text>
             <View style={styles.rescueTextContainer}>
-              <Text style={styles.rescueButtonText}>RESCUE</Text>
-              <Text style={styles.rescueButtonSubtext}>One-tap to get home</Text>
+              <Text style={styles.rescueButtonText}>FIND A DRIVER</Text>
+              <Text style={styles.rescueButtonSubtext}>Choose your transportation service</Text>
             </View>
             <Text style={styles.rescueArrow}>→</Text>
           </View>
@@ -112,7 +112,7 @@ export default function UserHome() {
           <Text style={styles.sectionTitle}>Recent Trips</Text>
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No trips yet</Text>
-            <Text style={styles.emptyStateSubtext}>Tap RESCUE to request a driver</Text>
+            <Text style={styles.emptyStateSubtext}>Choose a service to request a driver</Text>
           </View>
         </View>
 
