@@ -99,7 +99,7 @@ export default function UserHome() {
               // Growth hook: Referral
               Alert.alert(
                 'Invite Friends',
-                'Invite a friend and both get $10 credit!',
+                'Referral rewards are not active yet.',
                 [{ text: 'OK' }]
               );
             }}
@@ -107,7 +107,7 @@ export default function UserHome() {
             <Text style={styles.actionEmoji}>🎁</Text>
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>Invite Friends</Text>
-              <Text style={styles.actionSubtext}>Both get $10 credit</Text>
+              <Text style={styles.actionSubtext}>Rewards coming later</Text>
             </View>
             <Text style={styles.actionArrow}>→</Text>
           </TouchableOpacity>
