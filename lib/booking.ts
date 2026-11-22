@@ -127,27 +127,11 @@ export async function createBooking(request: BookingRequest) {
 // --- Helpers ---
 
 async function fetchAvailableDrivers(): Promise<AvailableDriver[]> {
-  // Fetch profiles with role 'driver' and their gear status
-  const { data: drivers, error } = await supabase
-    .from('profiles')
-    .select(`
-      id, email, phone, full_name, role, created_at, updated_at,
-      driver_gear ( verification_status, gear_type )
-    `)
-    .eq('role', 'driver');
-
-  if (error) throw error;
-
-  // Mocking location/availability for MVP since not in schema yet
-  // In production, join with 'driver_locations'
-  return (drivers || []).map(d => ({
-    ...d,
-    is_available: true, // Assume online for MVP
-    gear_verified: (d.driver_gear as any)?.[0]?.verification_status || 'none',
-    gear_type: (d.driver_gear as any)?.[0]?.gear_type || 'none',
-    currentLocation: { lat: 41.8240, lng: -71.4128 }, // Mock: Providence downtown
-    rating: 4.8 // Mock rating
-  })) as AvailableDriver[];
+  // Fail closed: an authenticated driver profile is NOT proof that the driver
+  // is online, nearby, licensed or eligible to accept a trip.
+  // Do not create dispatched trips until verified driver presence and
+  // service-specific eligibility are implemented.
+  return [];
 }
 
 function calculateApproxDistance(p1: {lat: number, lng: number}, p2: {lat: number, lng: number}) {
