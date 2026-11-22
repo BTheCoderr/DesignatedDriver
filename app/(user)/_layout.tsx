@@ -4,7 +4,7 @@ export default function UserLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
-      <Stack.Screen name="services" />\n      <Stack.Screen name="request-rescue" />
+      <Stack.Screen name="services" />\n      <Stack.Screen name="service-details" />\n      <Stack.Screen name="request-rescue" />
       <Stack.Screen name="vehicles" />
       <Stack.Screen name="trip-tracking" />
       <Stack.Screen name="trip-complete" />
