@@ -19,3 +19,11 @@ jobs:
       - run: npm ci
       - name: TypeScript
         run: npx tsc --noEmit
+
+      - name: Expo web production export
+        run: npx expo export --platform web --output-dir web-build
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: placeholder-for-build-only
+      - name: Verify exported web entry
+        run: test -f web-build/index.html
