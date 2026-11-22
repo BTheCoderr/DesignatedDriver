@@ -72,6 +72,11 @@ export default function UserHome() {
           </View>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(user)/my-requests')}>
+          <Text style={styles.actionEmoji}>📋</Text>
+          <View style={styles.actionContent}><Text style={styles.actionTitle}>My Transport Requests</Text><Text style={styles.actionSubtext}>View inquiries from web or mobile</Text></View>
+          <Text style={styles.actionArrow}>→</Text>
+        </TouchableOpacity>
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
