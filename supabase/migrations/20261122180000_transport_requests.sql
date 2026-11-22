@@ -15,7 +15,7 @@ create table if not exists public.transport_requests (
 create index if not exists transport_requests_customer_created_idx on public.transport_requests(customer_id, created_at desc);
 create index if not exists transport_requests_status_idx on public.transport_requests(status, requested_for);
 alter table public.transport_requests enable row level security;
-revoke all on public.transport_requests from anon;
+revoke all on public.transport_requests from anon, authenticated;
 grant select, insert on public.transport_requests to authenticated;
 create policy "Customers can read own transport requests" on public.transport_requests
  for select to authenticated using ((select auth.uid()) = customer_id);
