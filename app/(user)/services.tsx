@@ -8,7 +8,7 @@ export default function ServicesScreen() {
   const router = useRouter();
   async function choose(service: Service) {
     if (!service.available) {
-      Alert.alert('Coming soon', service.title + ' is being prepared. Booking is not yet available for this service.');
+      router.push({ pathname: '/(user)/service-details', params: { service: service.id } });
       return;
     }
     const { data: { user }, error } = await supabase.auth.getUser();
