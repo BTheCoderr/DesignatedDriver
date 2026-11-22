@@ -27,3 +27,29 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: placeholder-for-build-only
       - name: Verify exported web entry
         run: test -f web-build/index.html
+
+      - name: Verify exported routes
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const root = 'web-build';
+          const files = [];
+          function walk(dir) {
+            for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+              const p = path.join(dir, item.name);
+              if (item.isDirectory()) walk(p);
+              else files.push(p);
+            }
+          }
+          walk(root);
+          if (!files.some(f => f.endsWith('.js'))) throw new Error('No web JS bundle exported');
+          if (!fs.readFileSync(path.join(root, 'index.html'), 'utf8').includes('<')) throw new Error('Invalid web HTML');
+          console.log('Exported HTML and JS assets present:', files.length);
+          NODE
+      - name: Upload web build for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: designateddriver-web-preview
+          path: web-build/
+          retention-days: 7
