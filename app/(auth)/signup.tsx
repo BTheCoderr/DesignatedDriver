@@ -10,14 +10,20 @@ export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<{ message: string; success: boolean } | null>(null);
+  const showNotice = (message: string, success = false) => {
+    setNotice({ message, success });
+    if (Platform.OS !== 'web') Alert.alert(success ? 'Account update' : 'Signup error', message);
+  };
   const router = useRouter();
 
   const handleSignup = async () => {
     if (!email || !password || !fullName || !phone) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showNotice('Please fill in all fields');
       return;
     }
 
+    setNotice(null);
     setLoading(true);
     
     try {
@@ -39,25 +45,17 @@ export default function SignupScreen() {
         // Check for rate limiting
         if (error.message?.includes('429') || error.message?.includes('security purposes') || error.message?.includes('only request this after')) {
           const waitTime = error.message.match(/(\d+)\s+seconds?/)?.[1] || '60';
-          Alert.alert(
-            'Too Many Requests',
-            `You've tried signing up too many times. Please wait ${waitTime} seconds before trying again.`,
-            [{ text: 'OK' }]
-          );
+          showNotice(`Too many requests. Please wait ${waitTime} seconds before trying again.`);
           return;
         }
         
         // Check for API key error
         if (error.message?.includes('Invalid API key') || error.message?.includes('401')) {
-          Alert.alert(
-            'Configuration Error',
-            'Invalid Supabase API key. Please check your .env file and make sure EXPO_PUBLIC_SUPABASE_ANON_KEY is set correctly.',
-            [{ text: 'OK' }]
-          );
+          showNotice('The preview cannot connect to authentication. Please contact support.');
           return;
         }
         
-        Alert.alert('Signup Error', error.message || 'Failed to create account. Please try again.');
+        showNotice(error.message || 'Failed to create account. Please try again.');
         return;
       }
 
@@ -65,16 +63,7 @@ export default function SignupScreen() {
       if (data.user && !data.session) {
         // Email confirmation required
         setLoading(false);
-        Alert.alert(
-          'Check Your Email',
-          'We sent you a confirmation email. Please check your inbox and click the link to verify your account. After confirming, you can log in.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(auth)/login'),
-            },
-          ]
-        );
+        showNotice('Check your email for the confirmation link. After verifying, return here and sign in.', true);
         return;
       }
 
@@ -93,7 +82,7 @@ export default function SignupScreen() {
         if (profileError) {
           setLoading(false);
           console.error('Profile creation error:', profileError);
-          Alert.alert('Error', `Failed to create profile: ${profileError.message}`);
+          showNotice(`Account created, but your profile could not be loaded: ${profileError.message}`);
           return;
         }
 
@@ -104,12 +93,12 @@ export default function SignupScreen() {
         router.replace('/(auth)/role-select');
       } else {
         setLoading(false);
-        Alert.alert('Error', 'Account creation failed. Please try again.');
+        showNotice('Account creation failed. Please try again.');
       }
     } catch (err) {
       setLoading(false);
       console.error('Unexpected signup error:', err);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      showNotice('Unable to reach the signup service. Check your connection and try again.');
     }
   };
 
@@ -129,6 +118,7 @@ export default function SignupScreen() {
         </View>
 
         <View style={styles.form}>
+          {notice && <View accessibilityRole="alert" style={[styles.notice, notice.success && styles.successNotice]}><Text style={styles.noticeText}>{notice.message}</Text></View>}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Full Name</Text>
             <TextInput
@@ -237,6 +227,9 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
+  notice: { backgroundColor: '#632222', padding: 14, borderRadius: 10, marginBottom: 20 },
+  successNotice: { backgroundColor: '#164e3c' },
+  noticeText: { color: '#fff', fontSize: 15, lineHeight: 22 },
   inputContainer: {
     marginBottom: 20,
   },
