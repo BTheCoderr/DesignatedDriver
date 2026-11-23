@@ -12,17 +12,22 @@ export default function RootLayout() {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
+      if (error) console.warn('Unable to restore session:', error.message);
+      setSession(error ? null : session);
+    }).catch(error => {
+      console.warn('Session initialization failed:', error);
+      if (mounted) setSession(null);
+    }).finally(() => { if (mounted) setLoading(false); });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {

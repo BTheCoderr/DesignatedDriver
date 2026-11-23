@@ -62,8 +62,7 @@ export default function RequestRescueScreen() {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission to access location was denied');
-        // Fallback to PVD mock
-        setPickupLocation({ lat: 41.8240, lng: -71.4128, address: "Manual Location (Permission Denied)" });
+        setPickupLocation(null);
         return;
       }
 
@@ -87,8 +86,8 @@ export default function RequestRescueScreen() {
 
     } catch (err) {
       console.error('Location error:', err);
-      // Fallback if GPS fails on simulator
-      setPickupLocation({ lat: 41.8240, lng: -71.4128, address: "Providence, RI (GPS Failed)" });
+      setPickupLocation(null);
+      Alert.alert("Location unavailable", "Enable location access and retry. A pickup location cannot be guessed.");
     } finally {
       setLocationLoading(false);
     }
@@ -97,6 +96,7 @@ export default function RequestRescueScreen() {
   // --- 🔍 MOCK AUTOCOMPLETE ---
   function handleDestinationSearch(text: string) {
     setDestinationQuery(text);
+    setSelectedDestination(null);
     if (text.length > 1) {
       // Simulate API search
       const results = SUGGESTED_PLACES.filter(p => 
@@ -115,7 +115,10 @@ export default function RequestRescueScreen() {
   }
 
   async function handleRequestRescue() {
-    if (!selectedVehicleId || !selectedDestination || !pickupLocation) return;
+    if (!selectedVehicleId || !selectedDestination || !pickupLocation) {
+      Alert.alert("Missing trip details", "Select a vehicle, destination and verified pickup location.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -177,8 +180,7 @@ export default function RequestRescueScreen() {
         ]
       );
       
-      // Navigate to Tracking
-      router.push(`/(user)/trip-tracking?id=${trip.id}`);
+      // Tracking navigation is handled by the confirmation action above.
 
     } catch (error: any) {
       console.error("FULL BOOKING ERROR:", error); // Log full error object
@@ -203,7 +205,7 @@ export default function RequestRescueScreen() {
         {vehicles.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No vehicles found.</Text>
-            <Text style={styles.emptySubtext}>Make sure you ran the SQL seed script!</Text>
+            <Text style={styles.emptySubtext}>Add your vehicle to continue.</Text>
             <TouchableOpacity 
               style={styles.addVehicleBtn}
               onPress={() => router.push('/(user)/vehicles')}
@@ -327,7 +329,7 @@ export default function RequestRescueScreen() {
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.header}>Confirm Rescue</Text>
-      <Text style={styles.subHeader}>Review details before dispatch</Text>
+      <Text style={styles.subHeader}>Live dispatch is not available until verified drivers and insurance are configured.</Text>
 
       <View style={styles.summaryCard}>
         <View style={styles.summaryRow}>
@@ -349,10 +351,10 @@ export default function RequestRescueScreen() {
           <Text style={styles.summaryLabel}>Est. Price</Text>
           {/* Note: In a real app, you'd calculate this BEFORE this step to show user. 
               For MVP, we show a range since actual price depends on dispatch mode */}
-          <Text style={styles.summaryValue}>$25.00 - $35.00</Text>
+          <Text style={styles.summaryValue}>Unavailable</Text>
         </View>
         <Text style={styles.disclaimer}>
-          Final price depends on Solo-Scoot or Chase Car availability.
+          No verified quote or driver is available yet.
         </Text>
       </View>
 
@@ -368,7 +370,7 @@ export default function RequestRescueScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.btnText}>Request Now</Text>
+            <Text style={styles.btnText}>Check Availability</Text>
           )}
         </TouchableOpacity>
       </View>

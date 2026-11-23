@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -19,3 +19,70 @@ jobs:
       - run: npm ci
       - name: TypeScript
         run: npx tsc --noEmit
+
+      - name: Expo web production export
+        run: npx expo export --platform web --output-dir web-build
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: placeholder-for-build-only
+      - name: Verify exported web entry
+        run: test -f web-build/index.html
+
+      - name: Verify exported routes
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const root = 'web-build';
+          const files = [];
+          function walk(dir) {
+            for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+              const p = path.join(dir, item.name);
+              if (item.isDirectory()) walk(p);
+              else files.push(p);
+            }
+          }
+          walk(root);
+          if (!files.some(f => f.endsWith('.js'))) throw new Error('No web JS bundle exported');
+          if (!fs.readFileSync(path.join(root, 'index.html'), 'utf8').includes('<')) throw new Error('Invalid web HTML');
+          console.log('Exported HTML and JS assets present:', files.length);
+          NODE
+      - name: Upload web build for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: designateddriver-web-preview
+          path: web-build/
+          retention-days: 7
+
+      - name: Install Chromium for browser smoke test
+        run: |
+          npm install --no-save --package-lock=false playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Smoke test rendered web app
+        run: |
+          python3 -m http.server 4173 --directory web-build > /tmp/designateddriver-http.log 2>&1 &
+          node - <<'NODE'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({headless:true});
+            try {
+              const page = await browser.newPage();
+              const errors = [];
+              page.on('pageerror', e => errors.push(e.message));
+              await page.goto('http://127.0.0.1:4173', {waitUntil:'networkidle', timeout:30000});
+              const body = (await page.locator('body').innerText()).trim();
+              console.log('Rendered body:', body.slice(0,500));
+              if (!body) throw new Error('Web app rendered blank screen');
+              if (errors.length) throw new Error('Browser JS errors: '+errors.join(' | '));
+              await page.screenshot({path:'/tmp/designateddriver-smoke.png',fullPage:true});
+            } finally {await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Upload browser screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: designateddriver-browser-smoke
+          path: /tmp/designateddriver-smoke.png
+          if-no-files-found: ignore
+          retention-days: 7

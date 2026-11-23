@@ -5,26 +5,23 @@ import { Platform } from 'react-native';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing Supabase environment variables!');
-  console.error('EXPO_PUBLIC_SUPABASE_URL:', supabaseUrl || 'MISSING');
-  console.error('EXPO_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'MISSING');
-  console.error('Please check your .env file in the project root');
-} else {
-  console.log('✓ Supabase configured');
-  console.log('URL:', supabaseUrl);
-  console.log('Key:', `${supabaseAnonKey.substring(0, 20)}...`);
+// Build-time placeholders are intentionally nonfunctional. Never print API keys.
+const configured = /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(supabaseUrl) && supabaseAnonKey.length > 20;
+if (!configured) {
+  console.warn('Supabase environment is not configured. Auth and requests will remain unavailable.');
 }
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: Platform.OS === 'web' ? undefined : AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web', // Enable for web to detect auth redirects
-  },
-});
+export const supabase = createClient(
+  configured ? supabaseUrl : 'https://unconfigured.supabase.co',
+  configured ? supabaseAnonKey : 'not-configured-placeholder-key',
+  {
+    auth: {
+      storage: Platform.OS === 'web' ? undefined : AsyncStorage,
+      autoRefreshToken: configured,
+      persistSession: configured,
+      detectSessionInUrl: Platform.OS === 'web' && configured,
+    },
+  }
+);
 
 // Database types (simplified for MVP)
 export type Profile = {
