@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
-import AuthDebug from '@/components/AuthDebug';
 import { logLogin } from '@/lib/analytics';
 
 export default function LoginScreen() {
@@ -49,7 +48,9 @@ export default function LoginScreen() {
           return;
         }
         
-        setError(error.message || 'Failed to sign in. Please check your credentials.');
+        setError(/load failed|failed to fetch|network request failed/i.test(error.message || '')
+          ? 'Cannot reach the sign-in service. Please try again later.'
+          : error.message || 'Failed to sign in. Please check your credentials.');
         return;
       }
 
@@ -82,7 +83,7 @@ export default function LoginScreen() {
       setLoading(false);
 
       // Log login event
-      await logLogin(data.user.id);
+      try { await logLogin(data.user.id); } catch { console.warn('Login analytics unavailable'); }
 
       // Redirect based on role
       if (profile) {
@@ -99,7 +100,7 @@ export default function LoginScreen() {
     } catch (err) {
       setLoading(false);
       console.error('Unexpected login error:', err);
-      setError('An unexpected error occurred. Please try again.');
+      setError('Cannot complete sign-in right now. Please try again later.');
     }
   };
 
@@ -108,7 +109,6 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <AuthDebug />
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
