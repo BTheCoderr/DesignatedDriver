@@ -71,13 +71,13 @@ export default function SignupScreen() {
       if (data.user && data.session) {
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             id: data.user.id,
             email: email.trim(),
             phone,
             full_name: fullName,
             role: 'user',
-          });
+          }, { onConflict: 'id', ignoreDuplicates: true });
 
         if (profileError) {
           setLoading(false);
@@ -88,9 +88,9 @@ export default function SignupScreen() {
 
         setLoading(false);
         // Log signup event
-        await logSignup(data.user.id);
-        // Success! Redirect to role selection
-        router.replace('/(auth)/role-select');
+        try { await logSignup(data.user.id); } catch (analyticsError) { console.warn('Signup analytics unavailable'); }
+        // The account is already a customer; continue to services.
+        router.replace('/(user)/services');
       } else {
         setLoading(false);
         showNotice('Account creation failed. Please try again.');
