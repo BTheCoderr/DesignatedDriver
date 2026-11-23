@@ -9,3 +9,9 @@
 
 [build.environment]
   NODE_VERSION = "18"
+
+# Public client credentials, limited to PR preview deployments.
+# Production retains its existing Netlify environment configuration.
+[context.deploy-preview.environment]
+  EXPO_PUBLIC_SUPABASE_URL = "https://ipzvrcnjwoejayzcgnzs.supabase.co"
+  EXPO_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_Ar30VcERJxRD4rMLzAH8Pw_99vr4Gg3"
