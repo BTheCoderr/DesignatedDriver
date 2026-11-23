@@ -111,3 +111,7 @@ The current prototype still has deliberate limits:
 ---
 
 Built as a marketplace/operations prototype where the hard part is the **service workflow**, not just drawing a map with a driver pin.
+
+## Production hotfix deployment
+
+The production login hotfix removes the development auth diagnostic panel and makes analytics non-blocking. Production Supabase credentials and existing customer accounts must be verified separately before changing the backend. The broader transportation-service PR remains staged until its authenticated request flow is validated.
