@@ -115,3 +115,5 @@ Built as a marketplace/operations prototype where the hard part is the **service
 ## Production hotfix deployment
 
 The production login hotfix removes the development auth diagnostic panel and makes analytics non-blocking. Production Supabase credentials and existing customer accounts must be verified separately before changing the backend. The broader transportation-service PR remains staged until its authenticated request flow is validated.
+
+Production auth configuration was aligned with the active DesignatedDriver Supabase project on 2026-11-23. This commit triggers the rebuild needed to embed updated Expo public environment values. Existing users from the previous backend are not automatically migrated.
